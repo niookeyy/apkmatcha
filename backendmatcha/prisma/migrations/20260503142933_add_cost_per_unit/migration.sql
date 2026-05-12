@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "RawMaterial" ADD COLUMN     "costPerUnit" DOUBLE PRECISION NOT NULL DEFAULT 0;
