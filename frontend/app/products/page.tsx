@@ -238,11 +238,101 @@ export default function ProductsPage() {
     }
   }
 
-  async function deleteProduct(id: string) {
+  async function deactivateProduct(product: any) {
     const result = await Swal.fire({
       icon: 'warning',
-      title: 'Hapus produk?',
-      text: 'Produk yang dihapus tidak bisa dikembalikan. Jika produk sudah dipakai transaksi, proses hapus bisa gagal.',
+      title: 'Nonaktifkan produk?',
+      text: `${product.name} tidak akan tampil lagi di halaman Kasir, tapi riwayat transaksi tetap aman.`,
+      showCancelButton: true,
+      confirmButtonText: 'Ya, nonaktifkan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#2f4f32',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/products/${product.id}/deactivate`,
+        {
+          method: 'PATCH',
+        },
+      );
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Produk gagal dinonaktifkan.');
+      }
+
+      showToast(
+        'success',
+        'Produk dinonaktifkan',
+        'Produk tidak akan tampil di halaman Kasir.',
+      );
+
+      fetchProducts();
+    } catch (err: any) {
+      await showSwal(
+        'error',
+        'Gagal nonaktifkan produk',
+        err.message || 'Terjadi kesalahan.',
+      );
+    }
+  }
+
+  async function activateProduct(product: any) {
+    const result = await Swal.fire({
+      icon: 'question',
+      title: 'Aktifkan produk?',
+      text: `${product.name} akan tampil kembali di halaman Kasir.`,
+      showCancelButton: true,
+      confirmButtonText: 'Ya, aktifkan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#2f4f32',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/products/${product.id}/activate`,
+        {
+          method: 'PATCH',
+        },
+      );
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Produk gagal diaktifkan.');
+      }
+
+      showToast(
+        'success',
+        'Produk diaktifkan',
+        'Produk akan tampil kembali di halaman Kasir.',
+      );
+
+      fetchProducts();
+    } catch (err: any) {
+      await showSwal(
+        'error',
+        'Gagal aktifkan produk',
+        err.message || 'Terjadi kesalahan.',
+      );
+    }
+  }
+
+  async function deleteProduct(product: any) {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Hapus produk permanen?',
+      text: 'Hapus hanya aman untuk produk yang belum pernah dipakai transaksi. Jika sudah pernah transaksi, gunakan Nonaktifkan Produk.',
       showCancelButton: true,
       confirmButtonText: 'Ya, hapus',
       cancelButtonText: 'Batal',
@@ -254,9 +344,12 @@ export default function ProductsPage() {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/${id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/products/${product.id}`,
+        {
+          method: 'DELETE',
+        },
+      );
 
       const data = await res.json().catch(() => null);
 
@@ -270,7 +363,8 @@ export default function ProductsPage() {
       await showSwal(
         'error',
         'Gagal hapus',
-        err.message || 'Produk mungkin sudah dipakai di transaksi.',
+        err.message ||
+          'Produk mungkin sudah pernah dipakai transaksi. Gunakan fitur Nonaktifkan Produk.',
       );
     }
   }
@@ -294,7 +388,7 @@ export default function ProductsPage() {
               Produk
             </h1>
             <p className="mt-1 text-[#6f7b62]">
-              Produk dibuat bersama resep. Stok dan HPP otomatis dari bahan baku.
+              Produk aktif tampil di kasir. Produk nonaktif tetap aman untuk riwayat transaksi.
             </p>
           </div>
 
@@ -306,7 +400,6 @@ export default function ProductsPage() {
           </button>
         </div>
 
-        {/* MOBILE CARD LIST */}
         <div className="hidden max-md:block space-y-4">
           {products.length === 0 && (
             <div className="rounded-3xl bg-white p-6 text-center text-[#8a947d] shadow border border-[#dfe8d2]">
@@ -317,7 +410,11 @@ export default function ProductsPage() {
           {products.map((product) => (
             <div
               key={product.id}
-              className="rounded-3xl bg-white p-4 shadow border border-[#dfe8d2]"
+              className={`rounded-3xl bg-white p-4 shadow border ${
+                product.isActive === false
+                  ? 'border-red-100 opacity-80'
+                  : 'border-[#dfe8d2]'
+              }`}
             >
               <div className="flex gap-4">
                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#dfe8d2] bg-[#eef5e8] flex items-center justify-center">
@@ -342,8 +439,14 @@ export default function ProductsPage() {
                       </p>
                     </div>
 
-                    <span className="shrink-0 rounded-full bg-[#eef5e8] px-3 py-1 text-xs font-bold text-[#5f7f4f]">
-                      Stok {product.stock}
+                    <span
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                        product.isActive === false
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {product.isActive === false ? 'Nonaktif' : 'Aktif'}
                     </span>
                   </div>
 
@@ -356,14 +459,14 @@ export default function ProductsPage() {
                     </div>
 
                     <div className="rounded-2xl bg-[#f8fff4] p-3">
-                      <p className="text-xs text-[#8a947d]">HPP</p>
+                      <p className="text-xs text-[#8a947d]">Stok</p>
                       <p className="font-bold text-[#2f3a25]">
-                        Rp{Number(product.cost).toLocaleString('id-ID')}
+                        {product.stock}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="mt-4 grid grid-cols-1 gap-3">
                     <button
                       onClick={() => openEditModal(product)}
                       className="rounded-xl border border-[#d6dfc8] px-3 py-3 text-sm font-semibold text-[#5f7f4f] hover:bg-[#eef5e8]"
@@ -371,8 +474,24 @@ export default function ProductsPage() {
                       Edit
                     </button>
 
+                    {product.isActive === false ? (
+                      <button
+                        onClick={() => activateProduct(product)}
+                        className="rounded-xl border border-emerald-200 px-3 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                      >
+                        Aktifkan
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => deactivateProduct(product)}
+                        className="rounded-xl border border-orange-200 px-3 py-3 text-sm font-semibold text-orange-600 hover:bg-orange-50"
+                      >
+                        Nonaktifkan
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => deleteProduct(product.id)}
+                      onClick={() => deleteProduct(product)}
                       className="rounded-xl border border-red-200 px-3 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
                     >
                       Hapus
@@ -384,17 +503,17 @@ export default function ProductsPage() {
           ))}
         </div>
 
-        {/* DESKTOP TABLE */}
         <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden max-md:hidden">
           <table className="w-full text-left">
             <thead className="bg-[#eef5e8] text-[#2f3a25]">
               <tr>
                 <th className="px-6 py-4">Gambar</th>
                 <th className="px-6 py-4">Kode</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Nama Produk</th>
                 <th className="px-6 py-4">Harga</th>
                 <th className="px-6 py-4">HPP</th>
-                <th className="px-6 py-4">Stok Otomatis</th>
+                <th className="px-6 py-4">Stok</th>
                 <th className="px-6 py-4 text-right">Aksi</th>
               </tr>
             </thead>
@@ -403,7 +522,7 @@ export default function ProductsPage() {
               {products.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-8 text-center text-[#8a947d]"
                   >
                     Belum ada produk.
@@ -412,7 +531,12 @@ export default function ProductsPage() {
               )}
 
               {products.map((product) => (
-                <tr key={product.id} className="border-t border-[#eef2e8]">
+                <tr
+                  key={product.id}
+                  className={`border-t border-[#eef2e8] ${
+                    product.isActive === false ? 'bg-red-50/40' : ''
+                  }`}
+                >
                   <td className="px-6 py-4">
                     <div className="h-16 w-16 overflow-hidden rounded-2xl border border-[#dfe8d2] bg-[#eef5e8] flex items-center justify-center">
                       <img
@@ -432,6 +556,18 @@ export default function ProductsPage() {
                     {product.code || '-'}
                   </td>
 
+                  <td className="px-6 py-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        product.isActive === false
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {product.isActive === false ? 'Nonaktif' : 'Aktif'}
+                    </span>
+                  </td>
+
                   <td className="px-6 py-4 text-[#2f3a25]">
                     {product.name}
                   </td>
@@ -448,7 +584,7 @@ export default function ProductsPage() {
                     {product.stock}
                   </td>
 
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
                     <button
                       onClick={() => openEditModal(product)}
                       className="mr-2 rounded-lg border border-[#d6dfc8] px-3 py-2 text-sm text-[#5f7f4f] hover:bg-[#eef5e8] cursor-pointer"
@@ -456,8 +592,24 @@ export default function ProductsPage() {
                       Edit
                     </button>
 
+                    {product.isActive === false ? (
+                      <button
+                        onClick={() => activateProduct(product)}
+                        className="mr-2 rounded-lg border border-emerald-200 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                      >
+                        Aktifkan
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => deactivateProduct(product)}
+                        className="mr-2 rounded-lg border border-orange-200 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 cursor-pointer"
+                      >
+                        Nonaktifkan
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => deleteProduct(product.id)}
+                      onClick={() => deleteProduct(product)}
                       className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
                     >
                       Hapus

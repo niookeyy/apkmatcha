@@ -38,6 +38,7 @@ export class ProductService {
         ...data,
         imageUrl: data.imageUrl || null,
         code,
+        isActive: data.isActive ?? true,
       },
     });
   }
@@ -121,6 +122,7 @@ export class ProductService {
         cost: totalCost,
         stock,
         imageUrl: imageUrl || null,
+        isActive: true,
         recipes: {
           create: rawMaterials.map((item) => ({
             rawMaterialId: item.rawMaterial.id,
@@ -151,6 +153,29 @@ export class ProductService {
             rawMaterial: true,
           },
         },
+        _count: {
+          select: {
+            transactionItems: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  findActive() {
+    return this.prisma.product.findMany({
+      where: {
+        isActive: true,
+      },
+      include: {
+        recipes: {
+          include: {
+            rawMaterial: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -167,6 +192,11 @@ export class ProductService {
             rawMaterial: true,
           },
         },
+        _count: {
+          select: {
+            transactionItems: true,
+          },
+        },
       },
     });
   }
@@ -180,9 +210,59 @@ export class ProductService {
     if (data.stock !== undefined) updateData.stock = Number(data.stock);
     if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl || null;
 
+    if (data.isActive !== undefined) {
+      updateData.isActive =
+        data.isActive === true ||
+        data.isActive === 'true' ||
+        data.isActive === 1 ||
+        data.isActive === '1';
+    }
+
     return this.prisma.product.update({
       where: { id },
       data: updateData,
+    });
+  }
+
+  async deactivate(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Produk tidak ditemukan');
+    }
+
+    if (product.isActive === false) {
+      return product;
+    }
+
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        isActive: false,
+      },
+    });
+  }
+
+  async activate(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Produk tidak ditemukan');
+    }
+
+    if (product.isActive === true) {
+      return product;
+    }
+
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        isActive: true,
+      },
     });
   }
 
@@ -205,7 +285,7 @@ export class ProductService {
 
     if (product._count.transactionItems > 0) {
       throw new BadRequestException(
-        'Produk tidak bisa dihapus karena sudah pernah dipakai di transaksi. Untuk menjaga laporan dan riwayat struk tetap aman, produk ini sebaiknya dinonaktifkan, bukan dihapus.',
+        'Produk tidak bisa dihapus karena sudah pernah dipakai di transaksi. Gunakan fitur Nonaktifkan Produk agar riwayat transaksi dan laporan tetap aman.',
       );
     }
 

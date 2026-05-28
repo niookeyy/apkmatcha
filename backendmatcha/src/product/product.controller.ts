@@ -52,9 +52,24 @@ export class ProductController {
     return this.productService.findAll();
   }
 
+  @Get('active')
+  findActive() {
+    return this.productService.findActive();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productService.findOne(id);
+  }
+
+  @Patch(':id/deactivate')
+  deactivate(@Param('id') id: string) {
+    return this.productService.deactivate(id);
+  }
+
+  @Patch(':id/activate')
+  activate(@Param('id') id: string) {
+    return this.productService.activate(id);
   }
 
   @Patch(':id')
@@ -78,6 +93,10 @@ export class ProductController {
       ...body,
       price: body.price ? Number(body.price) : undefined,
       imageUrl: file ? `/uploads/${file.filename}` : body.imageUrl,
+      isActive:
+        body.isActive !== undefined
+          ? body.isActive === 'true' || body.isActive === true
+          : undefined,
     });
   }
 

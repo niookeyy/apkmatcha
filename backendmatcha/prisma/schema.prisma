@@ -26,6 +26,7 @@ model Product {
   createdAt        DateTime          @default(now())
   code             String?           @unique
   imageUrl         String?
+  isActive         Boolean           @default(true)
   recipes          Recipe[]
   transactionItems TransactionItem[]
 }

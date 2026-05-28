@@ -121,7 +121,10 @@ export default function CashierPage() {
 
   async function fetchProducts() {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/products/active`,
+      );
+
       const data = await res.json();
 
       if (Array.isArray(data)) setProducts(data);
