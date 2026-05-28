@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -42,15 +46,15 @@ export class ProductService {
     const { name, price, imageUrl, ingredients } = data;
 
     if (!name) {
-      throw new Error('Nama produk wajib diisi');
+      throw new BadRequestException('Nama produk wajib diisi');
     }
 
     if (!price || Number(price) <= 0) {
-      throw new Error('Harga produk wajib lebih dari 0');
+      throw new BadRequestException('Harga produk wajib lebih dari 0');
     }
 
     if (!ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
-      throw new Error('Resep bahan baku wajib diisi');
+      throw new BadRequestException('Resep bahan baku wajib diisi');
     }
 
     let totalCost = 0;
@@ -58,7 +62,7 @@ export class ProductService {
     const rawMaterials = await Promise.all(
       ingredients.map(async (item: any) => {
         if (!item.rawMaterialName || !item.qty || Number(item.qty) <= 0) {
-          throw new Error('Nama bahan baku dan qty wajib diisi');
+          throw new BadRequestException('Nama bahan baku dan qty wajib diisi');
         }
 
         const rawMaterial = await this.prisma.rawMaterial.findFirst({
@@ -68,7 +72,9 @@ export class ProductService {
         });
 
         if (!rawMaterial) {
-          throw new Error(`Bahan baku ${item.rawMaterialName} tidak ditemukan`);
+          throw new NotFoundException(
+            `Bahan baku ${item.rawMaterialName} tidak ditemukan`,
+          );
         }
 
         const qty = Number(item.qty);
@@ -180,9 +186,39 @@ export class ProductService {
     });
   }
 
-  remove(id: string) {
-    return this.prisma.product.delete({
+  async remove(id: string) {
+    const product = await this.prisma.product.findUnique({
       where: { id },
+      include: {
+        _count: {
+          select: {
+            recipes: true,
+            transactionItems: true,
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Produk tidak ditemukan');
+    }
+
+    if (product._count.transactionItems > 0) {
+      throw new BadRequestException(
+        'Produk tidak bisa dihapus karena sudah pernah dipakai di transaksi. Untuk menjaga laporan dan riwayat struk tetap aman, produk ini sebaiknya dinonaktifkan, bukan dihapus.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.recipe.deleteMany({
+        where: {
+          productId: id,
+        },
+      });
+
+      return tx.product.delete({
+        where: { id },
+      });
     });
   }
 }
