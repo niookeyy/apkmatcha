@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { io } from 'socket.io-client';
+import Swal from 'sweetalert2';
 import Sidebar from '../components/Sidebar';
 import Toast from '../components/ui/Toast';
 
@@ -16,6 +17,10 @@ export default function CashierPage() {
   const [loadingPay, setLoadingPay] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<any>(null);
 
+  const [discount, setDiscount] = useState('');
+  const [queueNumber, setQueueNumber] = useState('');
+  const [orderNote, setOrderNote] = useState('');
+
   const [toast, setToast] = useState({
     show: false,
     type: 'success' as 'success' | 'error' | 'warning',
@@ -23,7 +28,13 @@ export default function CashierPage() {
     message: '',
   });
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const subtotal = cart.reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0),
+    0,
+  );
+
+  const discountValue = Number(discount || 0);
+  const total = Math.max(subtotal - discountValue, 0);
   const change = Number(paid || 0) - total;
 
   const filteredProducts = products.filter((product) => {
@@ -56,11 +67,13 @@ export default function CashierPage() {
         }));
 
         if (data.status === 'PAID') {
-          showToast(
-            'success',
-            'Pembayaran berhasil',
-            'QRIS sudah dibayar customer.',
-          );
+          await Swal.fire({
+            icon: 'success',
+            title: 'Pembayaran berhasil',
+            text: 'QRIS sudah dibayar customer.',
+            confirmButtonText: 'Oke',
+            confirmButtonColor: '#2f4f32',
+          });
 
           await fetchProducts();
         }
@@ -92,6 +105,20 @@ export default function CashierPage() {
     }, 3000);
   }
 
+  async function showSwal(
+    icon: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    text: string,
+  ) {
+    await Swal.fire({
+      icon,
+      title,
+      text,
+      confirmButtonText: 'Oke',
+      confirmButtonColor: '#2f4f32',
+    });
+  }
+
   async function fetchProducts() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`);
@@ -101,13 +128,21 @@ export default function CashierPage() {
       else if (Array.isArray(data.data)) setProducts(data.data);
       else setProducts([]);
     } catch {
-      showToast('error', 'Gagal memuat produk', 'Pastikan backend menyala.');
+      await showSwal(
+        'error',
+        'Gagal memuat produk',
+        'Pastikan backend menyala.',
+      );
     }
   }
 
-  function addToCart(product: any) {
+  async function addToCart(product: any) {
     if (product.stock <= 0) {
-      showToast('warning', 'Stok habis', `${product.name} tidak tersedia.`);
+      await showSwal(
+        'warning',
+        'Stok habis',
+        `${product.name} tidak tersedia.`,
+      );
       return;
     }
 
@@ -115,7 +150,7 @@ export default function CashierPage() {
 
     if (existing) {
       if (existing.qty + 1 > product.stock) {
-        showToast(
+        await showSwal(
           'warning',
           'Stok tidak cukup',
           `Stok ${product.name} tersisa ${product.stock}.`,
@@ -131,7 +166,16 @@ export default function CashierPage() {
         ),
       );
     } else {
-      setCart([...cart, { ...product, qty: 1 }]);
+      setCart([
+        ...cart,
+        {
+          ...product,
+          qty: 1,
+          basePrice: Number(product.price || 0),
+          addOns: [],
+          note: '',
+        },
+      ]);
     }
   }
 
@@ -145,15 +189,119 @@ export default function CashierPage() {
     );
   }
 
-  function clearCart() {
-    setCart([]);
-    setPaid('');
-    setLastTransaction(null);
+  function updateItemNote(id: string, note: string) {
+    setCart(
+      cart.map((item) =>
+        item.id === id ? { ...item, note } : item,
+      ),
+    );
   }
 
-  function openPayment(method: 'CASH' | 'QRIS') {
+  function addOnToItem(id: string, addOn: any) {
+    setCart(
+      cart.map((item) => {
+        if (item.id !== id) return item;
+
+        const currentAddOns = item.addOns || [];
+        const newAddOns = [...currentAddOns, addOn];
+
+        const addOnTotal = newAddOns.reduce(
+          (sum: number, current: any) => sum + Number(current.price || 0),
+          0,
+        );
+
+        const basePrice = Number(item.basePrice || item.price || 0);
+
+        return {
+          ...item,
+          addOns: newAddOns,
+          price: basePrice + addOnTotal,
+          basePrice,
+        };
+      }),
+    );
+  }
+
+  function removeAddOn(id: string, index: number) {
+    setCart(
+      cart.map((item) => {
+        if (item.id !== id) return item;
+
+        const newAddOns = (item.addOns || []).filter(
+          (_: any, i: number) => i !== index,
+        );
+
+        const addOnTotal = newAddOns.reduce(
+          (sum: number, current: any) => sum + Number(current.price || 0),
+          0,
+        );
+
+        const basePrice = Number(item.basePrice || item.price || 0);
+
+        return {
+          ...item,
+          addOns: newAddOns,
+          price: basePrice + addOnTotal,
+          basePrice,
+        };
+      }),
+    );
+  }
+
+  async function clearCart() {
+    if (cart.length === 0 && !lastTransaction) {
+      await showSwal(
+        'info',
+        'Keranjang kosong',
+        'Belum ada item yang perlu dibatalkan.',
+      );
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Kosongkan keranjang?',
+      text: 'Item, diskon, catatan, dan transaksi terakhir akan dibersihkan.',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, kosongkan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#2f4f32',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    setCart([]);
+    setPaid('');
+    setDiscount('');
+    setQueueNumber('');
+    setOrderNote('');
+    setLastTransaction(null);
+
+    await showSwal(
+      'success',
+      'Keranjang dibersihkan',
+      'Keranjang berhasil dikosongkan.',
+    );
+  }
+
+  async function openPayment(method: 'CASH' | 'QRIS') {
     if (cart.length === 0) {
-      showToast('warning', 'Keranjang kosong', 'Pilih produk terlebih dahulu.');
+      await showSwal(
+        'warning',
+        'Keranjang kosong',
+        'Pilih produk terlebih dahulu.',
+      );
+      return;
+    }
+
+    if (discountValue > subtotal) {
+      await showSwal(
+        'warning',
+        'Diskon tidak valid',
+        'Diskon tidak boleh lebih besar dari subtotal.',
+      );
       return;
     }
 
@@ -168,16 +316,25 @@ export default function CashierPage() {
       setLoadingPay(true);
 
       if (paymentMethod === 'CASH' && Number(paid || 0) < total) {
-        showToast('error', 'Uang kurang', 'Nominal bayar kurang dari total.');
+        await showSwal(
+          'error',
+          'Uang kurang',
+          'Nominal bayar kurang dari total pembayaran.',
+        );
         return;
       }
 
       const payload = {
         paymentMethod,
         paid: paymentMethod === 'CASH' ? Number(paid) : total,
+        discount: discountValue,
+        queueNumber: queueNumber ? Number(queueNumber) : undefined,
+        note: orderNote,
         items: cart.map((item) => ({
           productId: item.id,
           qty: item.qty,
+          note: item.note || '',
+          addOns: item.addOns || [],
         })),
       };
 
@@ -197,73 +354,221 @@ export default function CashierPage() {
 
       setLastTransaction(data);
 
-      if (paymentMethod === 'CASH') {
-        showToast(
-          'success',
-          'Pembayaran berhasil',
-          'Transaksi tunai berhasil disimpan.',
-        );
+      await Swal.fire({
+        icon: 'success',
+        title: paymentMethod === 'CASH' ? 'Pembayaran berhasil' : 'QRIS berhasil',
+        text:
+          paymentMethod === 'CASH'
+            ? 'Transaksi tunai berhasil disimpan.'
+            : 'Transaksi QRIS berhasil disimpan.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
 
-        await fetchProducts();
-      }
-
-      if (paymentMethod === 'QRIS') {
-        showToast(
-          'success',
-          'QRIS dibuat',
-          'Customer tinggal scan QRIS. Status akan otomatis berubah realtime.',
-        );
-      }
+      await fetchProducts();
     } catch (err: any) {
-      showToast(
-        'error',
-        'Transaksi gagal',
-        err.message || 'Terjadi kesalahan.',
-      );
+      await Swal.fire({
+        icon: 'error',
+        title: 'Transaksi gagal',
+        text: err.message || 'Terjadi kesalahan.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
     } finally {
       setLoadingPay(false);
     }
   }
 
+  async function cancelTransaction() {
+    if (!lastTransaction?.id) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Belum ada transaksi',
+        text: 'Selesaikan pembayaran dulu sebelum membatalkan transaksi.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
+
+      return;
+    }
+
+    if (lastTransaction.status === 'CANCELLED') {
+      await Swal.fire({
+        icon: 'info',
+        title: 'Transaksi sudah dibatalkan',
+        text: 'Transaksi ini sebelumnya sudah dibatalkan.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
+
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Batalkan transaksi?',
+      text: 'Stok produk dan bahan baku akan dikembalikan.',
+      input: 'textarea',
+      inputLabel: 'Alasan pembatalan transaksi',
+      inputPlaceholder: 'Contoh: customer batal, salah input pesanan...',
+      inputAttributes: {
+        'aria-label': 'Alasan pembatalan transaksi',
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Ya, batalkan',
+      cancelButtonText: 'Tidak',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#2f4f32',
+      reverseButtons: true,
+      inputValidator: (value) => {
+        if (!value || !value.trim()) {
+          return 'Alasan pembatalan wajib diisi.';
+        }
+
+        return null;
+      },
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    const reason = result.value || 'Dibatalkan kasir';
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/transactions/${lastTransaction.id}/cancel`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reason }),
+        },
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Transaksi gagal dibatalkan');
+      }
+
+      setLastTransaction(data);
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Transaksi dibatalkan',
+        text: 'Stok dan cashflow sudah dikoreksi.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
+
+      await fetchProducts();
+    } catch (err: any) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Gagal batal transaksi',
+        text: err.message || 'Terjadi kesalahan.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
+    }
+  }
+
   async function printReceipt() {
     if (!lastTransaction?.id) {
-      showToast('warning', 'Belum ada transaksi', 'Selesaikan pembayaran dulu.');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Belum ada transaksi',
+        text: 'Selesaikan pembayaran dulu sebelum mencetak struk.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
+
       return;
     }
 
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/transactions/${lastTransaction.id}/receipt-text`,
-    );
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/transactions/${lastTransaction.id}/receipt-text`,
+      );
 
-    const text = await res.text();
+      const text = await res.text();
 
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
+      if (!res.ok) {
+        throw new Error(text || 'Gagal mengambil struk.');
+      }
 
-    if (!printWindow) {
-      showToast('error', 'Gagal print', 'Popup browser diblokir.');
+      const printWindow = window.open('', '_blank', 'width=400,height=600');
+
+      if (!printWindow) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Gagal print',
+          text: 'Popup browser diblokir. Izinkan popup untuk mencetak struk.',
+          confirmButtonText: 'Oke',
+          confirmButtonColor: '#2f4f32',
+        });
+
+        return;
+      }
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Struk</title>
+            <style>
+              body {
+                font-family: monospace;
+                white-space: pre-wrap;
+                padding: 16px;
+                font-size: 13px;
+              }
+            </style>
+          </head>
+          <body>${text}</body>
+        </html>
+      `);
+
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    } catch (err: any) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Gagal cetak struk',
+        text: err.message || 'Terjadi kesalahan.',
+        confirmButtonText: 'Oke',
+        confirmButtonColor: '#2f4f32',
+      });
+    }
+  }
+
+  async function finishTransaction() {
+    if (!lastTransaction) {
+      await showSwal(
+        'warning',
+        'Belum ada transaksi',
+        'Tidak ada transaksi yang bisa diselesaikan.',
+      );
       return;
     }
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Struk</title>
-          <style>
-            body {
-              font-family: monospace;
-              white-space: pre-wrap;
-              padding: 16px;
-              font-size: 13px;
-            }
-          </style>
-        </head>
-        <body>${text}</body>
-      </html>
-    `);
+    setCart([]);
+    setPaid('');
+    setDiscount('');
+    setQueueNumber('');
+    setOrderNote('');
+    setLastTransaction(null);
+    setPaymentOpen(false);
 
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    await Swal.fire({
+      icon: 'success',
+      title: 'Transaksi selesai',
+      text: 'Kasir siap menerima transaksi berikutnya.',
+      confirmButtonText: 'Oke',
+      confirmButtonColor: '#2f4f32',
+    });
   }
 
   return (
@@ -283,8 +588,8 @@ export default function CashierPage() {
 
       <Sidebar />
 
-      <section className="flex-1 flex flex-col">
-        <header className="h-20 bg-white border-b border-[#dfe8d2] flex items-center justify-between px-6">
+      <section className="flex-1 flex flex-col min-w-0">
+        <header className="h-20 bg-white border-b border-[#dfe8d2] flex items-center justify-between px-6 max-md:h-auto max-md:flex-col max-md:items-start max-md:gap-3 max-md:pt-20 max-md:pb-5">
           <div>
             <h1 className="text-2xl font-bold">Kasir</h1>
             <p className="text-sm text-[#6f7b62]">
@@ -294,14 +599,14 @@ export default function CashierPage() {
 
           <button
             onClick={clearCart}
-            className="rounded-full border border-red-200 px-8 py-2 text-red-600 hover:bg-red-50 cursor-pointer"
+            className="rounded-full border border-red-200 px-8 py-2 text-red-600 hover:bg-red-50 cursor-pointer max-md:w-full"
           >
             Batalkan
           </button>
         </header>
 
-        <div className="p-6">
-          <div className="flex gap-3 mb-5">
+        <div className="p-6 max-md:p-4 max-md:pb-[62vh]">
+          <div className="flex gap-3 mb-5 max-sm:flex-col">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -311,21 +616,21 @@ export default function CashierPage() {
 
             <button
               onClick={fetchProducts}
-              className="rounded-xl border border-[#008f67] px-6 font-semibold text-[#008f67] cursor-pointer"
+              className="rounded-xl border border-[#008f67] px-6 py-3 font-semibold text-[#008f67] cursor-pointer"
             >
               Refresh
             </button>
           </div>
 
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 max-md:block max-md:space-y-0 max-md:rounded-3xl max-md:bg-white max-md:border max-md:border-[#dfe8d2] max-md:overflow-hidden">
             {filteredProducts.map((product) => (
               <button
                 key={product.id}
                 onClick={() => addToCart(product)}
                 disabled={product.stock <= 0}
-                className="rounded-2xl bg-white p-5 text-left border border-[#dfe8d2] shadow-sm hover:shadow-md hover:bg-[#f8fff4] cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-2xl bg-white p-5 text-left border border-[#dfe8d2] shadow-sm hover:shadow-md hover:bg-[#f8fff4] cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed max-md:flex max-md:w-full max-md:items-center max-md:gap-4 max-md:rounded-none max-md:border-0 max-md:border-b max-md:border-[#eef2e8] max-md:bg-white max-md:p-4 max-md:shadow-none max-md:hover:bg-[#f8fff4]"
               >
-                <div className="mb-4 h-40 overflow-hidden rounded-2xl bg-white border border-[#eef2e8] flex items-center justify-center">
+                <div className="mb-4 h-40 overflow-hidden rounded-2xl bg-white border border-[#eef2e8] flex items-center justify-center max-md:mb-0 max-md:h-16 max-md:w-16 max-md:shrink-0 max-md:rounded-2xl max-md:border max-md:border-[#eef2e8]">
                   <img
                     src={
                       product.imageUrl
@@ -342,38 +647,51 @@ export default function CashierPage() {
                   />
                 </div>
 
-                <p className="font-bold">{product.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[#21351f] max-md:text-base max-md:leading-snug">
+                    {product.name}
+                  </p>
 
-                <p className="text-sm text-[#6f7b62]">
-                  Kode: {product.code || '-'}
-                </p>
+                  <p className="text-sm text-[#6f7b62] max-md:text-xs">
+                    Kode: {product.code || '-'}
+                  </p>
 
-                <p className="mt-3 text-xl font-bold text-[#008f67]">
-                  Rp{Number(product.price).toLocaleString('id-ID')}
-                </p>
+                  <p className="mt-3 text-xl font-bold text-[#008f67] max-md:mt-1 max-md:text-sm max-md:font-normal max-md:text-[#6f7b62]">
+                    <span className="hidden max-md:inline">
+                      Sisa {product.stock} •{' '}
+                    </span>
+                    Rp{Number(product.price).toLocaleString('id-ID')}
+                  </p>
 
-                <p className="text-xs text-[#8a947d]">
-                  Stok: {product.stock}
-                </p>
+                  <p className="text-xs text-[#8a947d] max-md:hidden">
+                    Stok: {product.stock}
+                  </p>
+                </div>
+
+                <div className="hidden max-md:block text-[#008f67] text-2xl">
+                  +
+                </div>
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      <aside className="w-[420px] bg-white border-l border-[#dfe8d2] flex flex-col">
-        <div className="h-20 border-b border-[#dfe8d2] flex items-center justify-between px-6">
+      <aside className="w-[420px] bg-white border-l border-[#dfe8d2] flex flex-col max-lg:w-[380px] max-md:fixed max-md:left-0 max-md:right-0 max-md:bottom-0 max-md:z-40 max-md:w-full max-md:h-[58vh] max-md:rounded-t-3xl max-md:shadow-[0_-10px_30px_rgba(0,0,0,0.12)] max-md:border-l-0 max-md:overflow-hidden">
+        <div className="h-20 border-b border-[#dfe8d2] flex items-center justify-between px-6 max-md:h-auto max-md:px-5 max-md:py-4">
           <div>
-            <p className="text-sm text-[#6f7b62]">Diskon : 0%</p>
+            <p className="text-sm text-[#6f7b62]">
+              Diskon : Rp{discountValue.toLocaleString('id-ID')}
+            </p>
             <p className="text-sm text-[#6f7b62]">Pajak : 0%</p>
           </div>
 
           <button className="font-bold text-[#008f67]">+ Biaya</button>
         </div>
 
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-6 overflow-y-auto max-lg:max-h-[520px] max-md:max-h-[90px] max-md:p-4">
           {cart.length === 0 && (
-            <p className="text-center text-[#8a947d] mt-20">
+            <p className="text-center text-[#8a947d] mt-10 max-md:mt-4">
               Belum ada item
             </p>
           )}
@@ -383,7 +701,7 @@ export default function CashierPage() {
               key={item.id}
               className="mb-4 rounded-2xl border border-[#eef2e8] p-4"
             >
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <div>
                   <p className="font-bold">{item.name}</p>
                   <p className="text-sm text-[#6f7b62]">
@@ -413,22 +731,112 @@ export default function CashierPage() {
                   +
                 </button>
               </div>
+
+              <input
+                value={item.note || ''}
+                onChange={(e) => updateItemNote(item.id, e.target.value)}
+                placeholder="Catatan item, contoh: less ice"
+                className="mt-3 w-full rounded-xl border border-[#dfe8d2] px-3 py-2 text-sm text-[#21351f] outline-none"
+              />
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    addOnToItem(item.id, {
+                      name: 'Extra Matcha',
+                      price: 5000,
+                    })
+                  }
+                  className="rounded-lg bg-[#eef5e8] px-3 py-2 text-xs font-bold text-[#2f4f32]"
+                >
+                  + Extra Matcha
+                </button>
+
+                <button
+                  onClick={() =>
+                    addOnToItem(item.id, {
+                      name: 'Extra Cream',
+                      price: 4000,
+                    })
+                  }
+                  className="rounded-lg bg-[#eef5e8] px-3 py-2 text-xs font-bold text-[#2f4f32]"
+                >
+                  + Extra Cream
+                </button>
+              </div>
+
+              {item.addOns?.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {item.addOns.map((addOn: any, index: number) => (
+                    <div
+                      key={`${addOn.name}-${index}`}
+                      className="flex items-center justify-between rounded-lg bg-[#f8fff4] px-3 py-2 text-xs text-[#2f3a25]"
+                    >
+                      <span>
+                        {addOn.name} + Rp
+                        {Number(addOn.price).toLocaleString('id-ID')}
+                      </span>
+
+                      <button
+                        onClick={() => removeAddOn(item.id, index)}
+                        className="text-red-500"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
-        <div className="border-t border-[#dfe8d2] p-6">
-          <div className="mb-4 flex justify-between text-sm text-[#6f7b62]">
+        <div className="border-t border-[#dfe8d2] p-6 max-md:p-4 max-md:overflow-y-auto max-md:max-h-[310px]">
+          <input
+            type="number"
+            value={queueNumber}
+            onChange={(e) => setQueueNumber(e.target.value)}
+            placeholder="No antrian otomatis / manual"
+            className="mb-2 w-full rounded-xl border border-[#dfe8d2] px-4 py-3 text-[#21351f] outline-none max-md:py-2.5"
+          />
+
+          <input
+            type="number"
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
+            placeholder="Diskon nominal, contoh: 5000"
+            className="mb-2 w-full rounded-xl border border-[#dfe8d2] px-4 py-3 text-[#21351f] outline-none max-md:py-2.5"
+          />
+
+          <textarea
+            value={orderNote}
+            onChange={(e) => setOrderNote(e.target.value)}
+            placeholder="Catatan pesanan, contoh: dibawa pulang"
+            rows={1}
+            className="mb-2 w-full rounded-xl border border-[#dfe8d2] px-4 py-3 text-[#21351f] outline-none max-md:py-2.5"
+          />
+
+          <div className="mb-1 flex justify-between text-sm text-[#6f7b62]">
             <span>Item</span>
             <span>{cart.reduce((sum, item) => sum + item.qty, 0)}</span>
           </div>
 
-          <div className="mb-4 flex justify-between text-lg font-bold text-[#21351f]">
+          <div className="mb-1 flex justify-between text-sm text-[#6f7b62]">
+            <span>Subtotal</span>
+            <span>Rp{Number(subtotal).toLocaleString('id-ID')}</span>
+          </div>
+
+          <div className="mb-1 flex justify-between text-sm text-red-500">
+            <span>Diskon</span>
+            <span>- Rp{Number(discountValue).toLocaleString('id-ID')}</span>
+          </div>
+
+          <div className="mb-3 flex justify-between text-lg font-bold text-[#21351f]">
             <span>Total</span>
             <span>Rp{Number(total).toLocaleString('id-ID')}</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="sticky bottom-0 grid grid-cols-2 gap-3 bg-white pt-2">
             <button
               disabled={cart.length === 0}
               onClick={() => openPayment('CASH')}
@@ -449,8 +857,8 @@ export default function CashierPage() {
       </aside>
 
       {paymentOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl max-h-[90vh] overflow-y-auto max-md:p-5">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-[#2f3a25]">
                 Pembayaran {paymentMethod}
@@ -494,7 +902,7 @@ export default function CashierPage() {
               <div className="mb-5 text-center">
                 {!lastTransaction?.qrString ? (
                   <p className="rounded-xl bg-[#eef5e8] p-4 text-[#6f7b62]">
-                    Klik “Buat QRIS” untuk membuat QR dinamis sesuai total belanja.
+                    QRIS saat ini tersimpan sebagai pembayaran manual. Klik tombol bayar untuk menyimpan transaksi.
                   </p>
                 ) : (
                   <div className="rounded-2xl border border-[#dfe8d2] p-5">
@@ -518,7 +926,7 @@ export default function CashierPage() {
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 max-sm:flex-col">
               {!lastTransaction && (
                 <button
                   onClick={processPayment}
@@ -528,7 +936,7 @@ export default function CashierPage() {
                   {loadingPay
                     ? 'Memproses...'
                     : paymentMethod === 'QRIS'
-                      ? 'Buat QRIS'
+                      ? 'Bayar QRIS'
                       : 'Bayar Tunai'}
                 </button>
               )}
@@ -543,12 +951,24 @@ export default function CashierPage() {
               )}
             </div>
 
+            {lastTransaction && lastTransaction.status !== 'CANCELLED' && (
+              <button
+                onClick={cancelTransaction}
+                className="mt-3 w-full rounded-xl border border-red-200 py-3 font-bold text-red-600 hover:bg-red-50 cursor-pointer"
+              >
+                Batalkan Transaksi
+              </button>
+            )}
+
+            {lastTransaction?.status === 'CANCELLED' && (
+              <p className="mt-3 rounded-xl bg-red-50 p-3 text-center font-bold text-red-600">
+                Transaksi sudah dibatalkan
+              </p>
+            )}
+
             {lastTransaction?.paymentStatus === 'PAID' && (
               <button
-                onClick={() => {
-                  clearCart();
-                  setPaymentOpen(false);
-                }}
+                onClick={finishTransaction}
                 className="mt-3 w-full rounded-xl bg-[#2f4f32] py-3 font-bold text-white cursor-pointer"
               >
                 Transaksi Selesai

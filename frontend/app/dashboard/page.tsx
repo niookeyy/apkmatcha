@@ -77,24 +77,26 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-[#f4f7ef] flex">
       <Sidebar />
 
-      <section className="flex-1 p-8">
-        <div className="mb-8 flex items-center justify-between">
+      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
+        <div className="mb-8 flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-[#2f3a25]">Dashboard</h2>
+            <h2 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
+              Dashboard
+            </h2>
             <p className="text-[#6f7b62] mt-1">
               Selamat datang, {user?.name || 'User'}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 max-md:w-full max-md:flex-col">
             <button
               onClick={fetchDashboard}
-              className="rounded-xl border border-[#6f8f5f] bg-white px-5 py-3 font-semibold text-[#6f8f5f] hover:bg-[#eef5e8] transition cursor-pointer"
+              className="rounded-xl border border-[#6f8f5f] bg-white px-5 py-3 font-semibold text-[#6f8f5f] hover:bg-[#eef5e8] transition cursor-pointer max-md:w-full"
             >
               Refresh
             </button>
 
-            <div className="rounded-2xl bg-white px-5 py-3 shadow border border-[#dfe8d2]">
+            <div className="rounded-2xl bg-white px-5 py-3 shadow border border-[#dfe8d2] max-md:w-full">
               <p className="text-sm text-[#6f7b62]">Role</p>
               <p className="font-semibold text-[#2f3a25]">
                 {user?.role || '-'}
@@ -137,8 +139,8 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
-                <div className="mb-5 flex items-center justify-between">
+              <div className="xl:col-span-2 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
+                <div className="mb-5 flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-3">
                   <h3 className="text-xl font-bold text-[#2f3a25]">
                     Ringkasan Laba Rugi
                   </h3>
@@ -174,7 +176,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
+              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
                 <h3 className="text-xl font-bold text-[#2f3a25] mb-5">
                   Stok Perlu Dicek
                 </h3>
@@ -203,104 +205,110 @@ export default function DashboardPage() {
 
             <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
               <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
-                <div className="p-6 border-b border-[#eef2e8]">
+                <div className="p-6 border-b border-[#eef2e8] max-md:p-5">
                   <h3 className="text-xl font-bold text-[#2f3a25]">
                     Produk Terlaris
                   </h3>
                 </div>
 
-                <table className="w-full text-left">
-                  <thead className="bg-[#eef5e8] text-[#2f3a25]">
-                    <tr>
-                      <th className="px-6 py-4">Produk</th>
-                      <th className="px-6 py-4">Qty</th>
-                      <th className="px-6 py-4">Revenue</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {topProducts.length === 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px] text-left">
+                    <thead className="bg-[#eef5e8] text-[#2f3a25]">
                       <tr>
-                        <td
-                          colSpan={3}
-                          className="px-6 py-8 text-center text-[#8a947d]"
-                        >
-                          Belum ada produk terjual.
-                        </td>
+                        <th className="px-6 py-4">Produk</th>
+                        <th className="px-6 py-4">Qty</th>
+                        <th className="px-6 py-4">Revenue</th>
                       </tr>
-                    )}
+                    </thead>
 
-                    {topProducts.slice(0, 5).map((item) => (
-                      <tr
-                        key={item.productId}
-                        className="border-t border-[#eef2e8]"
-                      >
-                        <td className="px-6 py-4 font-semibold text-[#2f3a25]">
-                          {item.name}
-                        </td>
-                        <td className="px-6 py-4 text-[#2f3a25]">
-                          {item.totalQty}
-                        </td>
-                        <td className="px-6 py-4 font-semibold text-[#008f67]">
-                          {formatRupiah(item.totalRevenue)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    <tbody>
+                      {topProducts.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="px-6 py-8 text-center text-[#8a947d]"
+                          >
+                            Belum ada produk terjual.
+                          </td>
+                        </tr>
+                      )}
+
+                      {topProducts.slice(0, 5).map((item) => (
+                        <tr
+                          key={item.productId}
+                          className="border-t border-[#eef2e8]"
+                        >
+                          <td className="px-6 py-4 font-semibold text-[#2f3a25]">
+                            {item.name}
+                          </td>
+                          <td className="px-6 py-4 text-[#2f3a25]">
+                            {item.totalQty}
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-[#008f67]">
+                            {formatRupiah(item.totalRevenue)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
-                <div className="p-6 border-b border-[#eef2e8]">
+                <div className="p-6 border-b border-[#eef2e8] max-md:p-5">
                   <h3 className="text-xl font-bold text-[#2f3a25]">
                     Transaksi Terbaru
                   </h3>
                 </div>
 
-                <table className="w-full text-left">
-                  <thead className="bg-[#eef5e8] text-[#2f3a25]">
-                    <tr>
-                      <th className="px-6 py-4">Tanggal</th>
-                      <th className="px-6 py-4">Total</th>
-                      <th className="px-6 py-4">Status</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {transactions.length === 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px] text-left">
+                    <thead className="bg-[#eef5e8] text-[#2f3a25]">
                       <tr>
-                        <td
-                          colSpan={3}
-                          className="px-6 py-8 text-center text-[#8a947d]"
-                        >
-                          Belum ada transaksi.
-                        </td>
+                        <th className="px-6 py-4">Tanggal</th>
+                        <th className="px-6 py-4">Total</th>
+                        <th className="px-6 py-4">Status</th>
                       </tr>
-                    )}
+                    </thead>
 
-                    {transactions.map((trx) => (
-                      <tr key={trx.id} className="border-t border-[#eef2e8]">
-                        <td className="px-6 py-4 text-[#6f7b62]">
-                          {new Date(trx.createdAt).toLocaleString('id-ID')}
-                        </td>
-                        <td className="px-6 py-4 font-semibold text-[#2f3a25]">
-                          {formatRupiah(trx.total)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${
-                              trx.paymentStatus === 'PAID'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                            }`}
+                    <tbody>
+                      {transactions.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="px-6 py-8 text-center text-[#8a947d]"
                           >
-                            {trx.paymentStatus}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            Belum ada transaksi.
+                          </td>
+                        </tr>
+                      )}
+
+                      {transactions.map((trx) => (
+                        <tr key={trx.id} className="border-t border-[#eef2e8]">
+                          <td className="px-6 py-4 text-[#6f7b62]">
+                            {new Date(trx.createdAt).toLocaleString('id-ID')}
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-[#2f3a25]">
+                            {formatRupiah(trx.total)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                trx.paymentStatus === 'PAID'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : trx.paymentStatus === 'CANCELLED'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                              }`}
+                            >
+                              {trx.paymentStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </>
@@ -322,10 +330,10 @@ function DashboardCard({
   green?: boolean;
 }) {
   return (
-    <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
+    <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
       <p className="text-sm text-[#6f7b62]">{label}</p>
       <h3
-        className={`mt-3 text-2xl font-bold ${
+        className={`mt-3 text-2xl font-bold max-md:text-xl ${
           green ? 'text-[#008f67]' : 'text-[#2f3a25]'
         }`}
       >
@@ -346,11 +354,15 @@ function ReportRow({
   bold?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-4">
       <p className={bold ? 'font-bold text-[#2f3a25]' : 'text-[#6f7b62]'}>
         {label}
       </p>
-      <p className={bold ? 'font-bold text-[#008f67]' : 'text-[#2f3a25]'}>
+      <p
+        className={`text-right ${
+          bold ? 'font-bold text-[#008f67]' : 'text-[#2f3a25]'
+        }`}
+      >
         {value}
       </p>
     </div>

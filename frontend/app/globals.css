@@ -19,6 +19,17 @@
   }
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -57,4 +68,88 @@ textarea {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+img {
+  max-width: 100%;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/* =========================
+   GLOBAL MOBILE IMPROVEMENT
+   Desktop tidak berubah
+========================= */
+
+@media (max-width: 768px) {
+  .mobile-page {
+    padding: 16px;
+    padding-top: 88px;
+    padding-bottom: 110px;
+  }
+
+  .mobile-header-stack {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .mobile-title {
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 800;
+    color: #2f3a25;
+  }
+
+  .mobile-subtitle {
+    margin-top: 4px;
+    font-size: 14px;
+    color: #6f7b62;
+  }
+
+  .mobile-card {
+    border-radius: 24px;
+    background: #ffffff;
+    border: 1px solid #dfe8d2;
+    box-shadow: 0 4px 14px rgba(47, 79, 50, 0.06);
+  }
+
+  .mobile-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 24px;
+  }
+
+  .mobile-table {
+    min-width: 760px;
+  }
+
+  .mobile-action-button {
+    width: 100%;
+    border-radius: 18px;
+    padding: 14px 18px;
+    font-weight: 700;
+  }
+
+  .mobile-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-modal {
+    width: calc(100vw - 24px);
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 20px !important;
+    border-radius: 24px !important;
+  }
+
+  .mobile-grid-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-scroll-x {
+    overflow-x: auto;
+  }
 }

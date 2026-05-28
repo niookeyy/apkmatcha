@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-
+import { ReceiptSettingModule } from './receipt-setting/receipt-setting.module';
 import { ProductModule } from './product/product.module';
 import { PrismaService } from './prisma/prisma.service';
 import { TransactionModule } from './transaction/transaction.module';

@@ -115,19 +115,21 @@ export default function ReportsPage() {
     <main className="min-h-screen bg-[#f4f7ef] flex">
       <Sidebar />
 
-      <section className="flex-1 p-8">
-        <div className="mb-8 flex items-center justify-between">
+      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
+        <div className="mb-8 flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#2f3a25]">Laporan</h1>
+            <h1 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
+              Laporan
+            </h1>
             <p className="mt-1 text-[#6f7b62]">
               Ringkasan penjualan, cashflow, laba rugi, dan produk terlaris.
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 max-md:w-full max-md:flex-col">
             <button
               onClick={fetchReports}
-              className="rounded-xl bg-[#6f8f5f] px-5 py-3 font-semibold text-white hover:bg-[#5f7f4f] transition cursor-pointer"
+              className="rounded-xl bg-[#6f8f5f] px-5 py-3 font-semibold text-white hover:bg-[#5f7f4f] transition cursor-pointer max-md:w-full"
             >
               Refresh
             </button>
@@ -135,7 +137,7 @@ export default function ReportsPage() {
             <button
               onClick={exportToExcel}
               disabled={loading}
-              className="rounded-xl border border-[#6f8f5f] bg-white px-5 py-3 font-semibold text-[#6f8f5f] hover:bg-[#eef5e8] transition cursor-pointer disabled:opacity-50"
+              className="rounded-xl border border-[#6f8f5f] bg-white px-5 py-3 font-semibold text-[#6f8f5f] hover:bg-[#eef5e8] transition cursor-pointer disabled:opacity-50 max-md:w-full"
             >
               Export Excel
             </button>
@@ -149,47 +151,34 @@ export default function ReportsPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
-                <p className="text-sm text-[#6f7b62]">Penjualan Hari Ini</p>
-                <h3 className="mt-3 text-2xl font-bold text-[#2f3a25]">
-                  {formatRupiah(today?.totalSales)}
-                </h3>
-                <p className="mt-2 text-sm text-[#8a947d]">
-                  {today?.totalTransactions || 0} transaksi
-                </p>
-              </div>
+              <ReportCard
+                label="Penjualan Hari Ini"
+                value={formatRupiah(today?.totalSales)}
+                sub={`${today?.totalTransactions || 0} transaksi`}
+              />
 
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
-                <p className="text-sm text-[#6f7b62]">Total Penjualan</p>
-                <h3 className="mt-3 text-2xl font-bold text-[#2f3a25]">
-                  {formatRupiah(summary?.totalSales)}
-                </h3>
-                <p className="mt-2 text-sm text-[#8a947d]">
-                  {summary?.totalTransactions || 0} transaksi
-                </p>
-              </div>
+              <ReportCard
+                label="Total Penjualan"
+                value={formatRupiah(summary?.totalSales)}
+                sub={`${summary?.totalTransactions || 0} transaksi`}
+              />
 
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
-                <p className="text-sm text-[#6f7b62]">Laba Kotor</p>
-                <h3 className="mt-3 text-2xl font-bold text-[#008f67]">
-                  {formatRupiah(profitLoss?.grossProfit)}
-                </h3>
-                <p className="mt-2 text-sm text-[#8a947d]">Revenue - HPP</p>
-              </div>
+              <ReportCard
+                label="Laba Kotor"
+                value={formatRupiah(profitLoss?.grossProfit)}
+                sub="Revenue - HPP"
+                green
+              />
 
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
-                <p className="text-sm text-[#6f7b62]">Saldo Cashflow</p>
-                <h3 className="mt-3 text-2xl font-bold text-[#2f3a25]">
-                  {formatRupiah(cashflow?.balance)}
-                </h3>
-                <p className="mt-2 text-sm text-[#8a947d]">
-                  Masuk - Keluar
-                </p>
-              </div>
+              <ReportCard
+                label="Saldo Cashflow"
+                value={formatRupiah(cashflow?.balance)}
+                sub="Masuk - Keluar"
+              />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
+              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
                 <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
                   Laba Rugi
                 </h2>
@@ -222,7 +211,7 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
+              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
                 <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
                   Cashflow
                 </h2>
@@ -249,58 +238,86 @@ export default function ReportsPage() {
             </div>
 
             <div className="mt-6 rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
-              <div className="p-6 border-b border-[#eef2e8]">
+              <div className="p-6 border-b border-[#eef2e8] max-md:p-5">
                 <h2 className="text-xl font-bold text-[#2f3a25]">
                   Produk Terlaris
                 </h2>
               </div>
 
-              <table className="w-full text-left">
-                <thead className="bg-[#eef5e8] text-[#2f3a25]">
-                  <tr>
-                    <th className="px-6 py-4">Produk</th>
-                    <th className="px-6 py-4">Qty Terjual</th>
-                    <th className="px-6 py-4">Revenue</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {topProducts.length === 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px] text-left">
+                  <thead className="bg-[#eef5e8] text-[#2f3a25]">
                     <tr>
-                      <td
-                        colSpan={3}
-                        className="px-6 py-8 text-center text-[#8a947d]"
+                      <th className="px-6 py-4">Produk</th>
+                      <th className="px-6 py-4">Qty Terjual</th>
+                      <th className="px-6 py-4">Revenue</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {topProducts.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="px-6 py-8 text-center text-[#8a947d]"
+                        >
+                          Belum ada data produk terjual.
+                        </td>
+                      </tr>
+                    )}
+
+                    {topProducts.map((item) => (
+                      <tr
+                        key={item.productId}
+                        className="border-t border-[#eef2e8]"
                       >
-                        Belum ada data produk terjual.
-                      </td>
-                    </tr>
-                  )}
+                        <td className="px-6 py-4 font-semibold text-[#2f3a25]">
+                          {item.name}
+                        </td>
 
-                  {topProducts.map((item) => (
-                    <tr
-                      key={item.productId}
-                      className="border-t border-[#eef2e8]"
-                    >
-                      <td className="px-6 py-4 font-semibold text-[#2f3a25]">
-                        {item.name}
-                      </td>
+                        <td className="px-6 py-4 text-[#2f3a25]">
+                          {item.totalQty}
+                        </td>
 
-                      <td className="px-6 py-4 text-[#2f3a25]">
-                        {item.totalQty}
-                      </td>
-
-                      <td className="px-6 py-4 text-[#008f67] font-semibold">
-                        {formatRupiah(item.totalRevenue)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <td className="px-6 py-4 text-[#008f67] font-semibold">
+                          {formatRupiah(item.totalRevenue)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )}
       </section>
     </main>
+  );
+}
+
+function ReportCard({
+  label,
+  value,
+  sub,
+  green = false,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  green?: boolean;
+}) {
+  return (
+    <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
+      <p className="text-sm text-[#6f7b62]">{label}</p>
+      <h3
+        className={`mt-3 text-2xl font-bold max-md:text-xl ${
+          green ? 'text-[#008f67]' : 'text-[#2f3a25]'
+        }`}
+      >
+        {value}
+      </h3>
+      <p className="mt-2 text-sm text-[#8a947d]">{sub}</p>
+    </div>
   );
 }
 
@@ -314,12 +331,16 @@ function ReportRow({
   bold?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-4">
       <p className={bold ? 'font-bold text-[#2f3a25]' : 'text-[#6f7b62]'}>
         {label}
       </p>
 
-      <p className={bold ? 'font-bold text-[#008f67]' : 'text-[#2f3a25]'}>
+      <p
+        className={`text-right ${
+          bold ? 'font-bold text-[#008f67]' : 'text-[#2f3a25]'
+        }`}
+      >
         {value}
       </p>
     </div>

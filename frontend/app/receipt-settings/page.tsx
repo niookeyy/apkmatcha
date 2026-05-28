@@ -5,6 +5,8 @@ import Sidebar from '../components/Sidebar';
 import Toast from '../components/ui/Toast';
 
 export default function ReceiptSettingsPage() {
+  const [loading, setLoading] = useState(true);
+
   const [toast, setToast] = useState({
     show: false,
     type: 'success' as 'success' | 'error' | 'warning',
@@ -25,11 +27,7 @@ export default function ReceiptSettingsPage() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem('receiptSettings');
-
-    if (saved) {
-      setForm(JSON.parse(saved));
-    }
+    fetchSettings();
   }, []);
 
   function showToast(
@@ -44,14 +42,76 @@ export default function ReceiptSettingsPage() {
     }, 3000);
   }
 
-  function saveSettings() {
-    localStorage.setItem('receiptSettings', JSON.stringify(form));
+  async function fetchSettings() {
+    try {
+      setLoading(true);
 
-    showToast(
-      'success',
-      'Setting struk disimpan',
-      'Format struk berhasil diperbarui.',
-    );
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/receipt-settings`,
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Gagal mengambil setting struk');
+      }
+
+      setForm({
+        storeName: data.storeName || 'Matchaboy',
+        address: data.address || '',
+        phone: data.phone || '',
+        cashierName: data.cashierName || '',
+        footer: data.footer || 'Terima kasih sudah membeli 🍵',
+        printerWidth: String(data.printerWidth || 32),
+        showLogo: data.showLogo ?? true,
+        showAddress: data.showAddress ?? true,
+        showPhone: data.showPhone ?? true,
+      });
+    } catch (err: any) {
+      showToast(
+        'error',
+        'Gagal memuat setting',
+        err.message || 'Pastikan backend menyala.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveSettings() {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/receipt-settings`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...form,
+            printerWidth: Number(form.printerWidth || 32),
+          }),
+        },
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Gagal menyimpan setting struk');
+      }
+
+      showToast(
+        'success',
+        'Setting struk disimpan',
+        'Format struk berhasil diperbarui.',
+      );
+    } catch (err: any) {
+      showToast(
+        'error',
+        'Gagal menyimpan',
+        err.message || 'Terjadi kesalahan.',
+      );
+    }
   }
 
   function resetSettings() {
@@ -68,9 +128,12 @@ export default function ReceiptSettingsPage() {
     };
 
     setForm(defaultData);
-    localStorage.setItem('receiptSettings', JSON.stringify(defaultData));
 
-    showToast('success', 'Setting direset', 'Format struk kembali default.');
+    showToast(
+      'warning',
+      'Setting direset sementara',
+      'Klik Simpan Setting Struk agar tersimpan ke backend.',
+    );
   }
 
   return (
@@ -85,10 +148,12 @@ export default function ReceiptSettingsPage() {
 
       <Sidebar />
 
-      <section className="flex-1 p-8">
-        <div className="mb-8 flex items-center justify-between">
+      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
+        <div className="mb-8 flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#2f3a25]">Edit Struk</h1>
+            <h1 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
+              Edit Struk
+            </h1>
             <p className="mt-1 text-[#6f7b62]">
               Atur tampilan struk kasir untuk dicetak ke printer thermal.
             </p>
@@ -96,169 +161,179 @@ export default function ReceiptSettingsPage() {
 
           <button
             onClick={resetSettings}
-            className="rounded-xl border border-red-200 bg-white px-5 py-3 font-semibold text-red-600 hover:bg-red-50 cursor-pointer"
+            className="rounded-xl border border-red-200 bg-white px-5 py-3 font-semibold text-red-600 hover:bg-red-50 cursor-pointer max-md:w-full"
           >
             Reset
           </button>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
-            <h2 className="mb-5 text-xl font-bold text-[#2f3a25]">
-              Pengaturan Struk
-            </h2>
+        {loading ? (
+          <div className="rounded-3xl bg-white p-8 shadow border border-[#dfe8d2] text-[#6f7b62]">
+            Memuat setting struk...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
+              <h2 className="mb-5 text-xl font-bold text-[#2f3a25]">
+                Pengaturan Struk
+              </h2>
 
-            <div className="space-y-4">
-              <Input
-                label="Nama Toko"
-                value={form.storeName}
-                onChange={(value) => setForm({ ...form, storeName: value })}
-                placeholder="Matchaboy"
-              />
-
-              <Input
-                label="Alamat Outlet"
-                value={form.address}
-                onChange={(value) => setForm({ ...form, address: value })}
-                placeholder="Jl. Contoh No. 10, Sidoarjo"
-                disabled={!form.showAddress}
-              />
-
-              <Input
-                label="Nomor Telepon"
-                value={form.phone}
-                onChange={(value) => setForm({ ...form, phone: value })}
-                placeholder="0812xxxxxxx"
-                disabled={!form.showPhone}
-              />
-
-              <Input
-                label="Nama Kasir Default"
-                value={form.cashierName}
-                onChange={(value) => setForm({ ...form, cashierName: value })}
-                placeholder="Admin"
-              />
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-[#3f4b35]">
-                  Footer Struk
-                </label>
-
-                <textarea
-                  rows={3}
-                  value={form.footer}
-                  onChange={(e) =>
-                    setForm({ ...form, footer: e.target.value })
-                  }
-                  placeholder="Terima kasih sudah membeli"
-                  className="w-full rounded-2xl border border-[#dfe8d2] bg-[#fdfefd] px-5 py-4 text-[#2f3a25] outline-none transition focus:border-[#86a96f] focus:ring-4 focus:ring-[#dfe8d2]"
+              <div className="space-y-4">
+                <Input
+                  label="Nama Toko"
+                  value={form.storeName}
+                  onChange={(value) => setForm({ ...form, storeName: value })}
+                  placeholder="Matchaboy"
                 />
+
+                <Input
+                  label="Alamat Outlet"
+                  value={form.address}
+                  onChange={(value) => setForm({ ...form, address: value })}
+                  placeholder="Jl. Contoh No. 10, Sidoarjo"
+                  disabled={!form.showAddress}
+                />
+
+                <Input
+                  label="Nomor Telepon"
+                  value={form.phone}
+                  onChange={(value) => setForm({ ...form, phone: value })}
+                  placeholder="0812xxxxxxx"
+                  disabled={!form.showPhone}
+                />
+
+                <Input
+                  label="Nama Kasir Default"
+                  value={form.cashierName}
+                  onChange={(value) => setForm({ ...form, cashierName: value })}
+                  placeholder="Admin"
+                />
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#3f4b35]">
+                    Footer Struk
+                  </label>
+
+                  <textarea
+                    rows={3}
+                    value={form.footer}
+                    onChange={(e) =>
+                      setForm({ ...form, footer: e.target.value })
+                    }
+                    placeholder="Terima kasih sudah membeli"
+                    className="w-full rounded-2xl border border-[#dfe8d2] bg-[#fdfefd] px-5 py-4 text-[#2f3a25] outline-none transition focus:border-[#86a96f] focus:ring-4 focus:ring-[#dfe8d2]"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#3f4b35]">
+                    Lebar Struk
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, printerWidth: '32' })}
+                      className={`rounded-2xl border p-4 text-left transition cursor-pointer ${
+                        form.printerWidth === '32'
+                          ? 'border-[#6f8f5f] bg-[#eef5e8] shadow'
+                          : 'border-[#dfe8d2] bg-white hover:bg-[#f8fff4]'
+                      }`}
+                    >
+                      <p className="font-bold text-[#2f3a25]">58mm</p>
+                      <p className="mt-1 text-xs text-[#6f7b62]">
+                        32 karakter
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, printerWidth: '42' })}
+                      className={`rounded-2xl border p-4 text-left transition cursor-pointer ${
+                        form.printerWidth === '42'
+                          ? 'border-[#6f8f5f] bg-[#eef5e8] shadow'
+                          : 'border-[#dfe8d2] bg-white hover:bg-[#f8fff4]'
+                      }`}
+                    >
+                      <p className="font-bold text-[#2f3a25]">80mm</p>
+                      <p className="mt-1 text-xs text-[#6f7b62]">
+                        42 karakter
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <ToggleCard
+                    label="Tampilkan Logo"
+                    active={form.showLogo}
+                    onClick={() =>
+                      setForm({ ...form, showLogo: !form.showLogo })
+                    }
+                  />
+
+                  <ToggleCard
+                    label="Tampilkan Alamat"
+                    active={form.showAddress}
+                    onClick={() =>
+                      setForm({ ...form, showAddress: !form.showAddress })
+                    }
+                  />
+
+                  <ToggleCard
+                    label="Tampilkan Telepon"
+                    active={form.showPhone}
+                    onClick={() =>
+                      setForm({ ...form, showPhone: !form.showPhone })
+                    }
+                  />
+                </div>
+
+                <button
+                  onClick={saveSettings}
+                  className="w-full rounded-2xl bg-[#6f8f5f] py-4 font-bold text-white hover:bg-[#5f7f4f] cursor-pointer"
+                >
+                  Simpan Setting Struk
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-[#3f4b35]">
-                  Lebar Struk
-                </label>
+            <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
+              <h2 className="mb-5 text-xl font-bold text-[#2f3a25]">
+                Preview Struk
+              </h2>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, printerWidth: '32' })}
-                    className={`rounded-2xl border p-4 text-left transition cursor-pointer ${
-                      form.printerWidth === '32'
-                        ? 'border-[#6f8f5f] bg-[#eef5e8] shadow'
-                        : 'border-[#dfe8d2] bg-white hover:bg-[#f8fff4]'
-                    }`}
-                  >
-                    <p className="font-bold text-[#2f3a25]">58mm</p>
-                    <p className="mt-1 text-xs text-[#6f7b62]">
-                      32 karakter
-                    </p>
-                  </button>
+              <div className="rounded-2xl bg-[#f8faf5] p-4 sm:p-6 border border-[#dfe8d2] overflow-x-auto">
+                <div
+                  className={`mx-auto rounded-xl bg-white p-5 font-mono text-sm leading-relaxed text-[#2f3a25] shadow ${
+                    form.printerWidth === '32'
+                      ? 'max-w-[280px]'
+                      : 'max-w-[360px]'
+                  }`}
+                >
+                  {form.showLogo && (
+                    <div className="mb-3 flex justify-center">
+                      <img
+                        src="/logo.svg"
+                        alt="Logo"
+                        className="h-14 w-14 object-contain"
+                        draggable={false}
+                      />
+                    </div>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, printerWidth: '42' })}
-                    className={`rounded-2xl border p-4 text-left transition cursor-pointer ${
-                      form.printerWidth === '42'
-                        ? 'border-[#6f8f5f] bg-[#eef5e8] shadow'
-                        : 'border-[#dfe8d2] bg-white hover:bg-[#f8fff4]'
-                    }`}
-                  >
-                    <p className="font-bold text-[#2f3a25]">80mm</p>
-                    <p className="mt-1 text-xs text-[#6f7b62]">
-                      42 karakter
-                    </p>
-                  </button>
+                  <pre className="whitespace-pre-wrap">
+                    {buildReceiptPreview(form)}
+                  </pre>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <ToggleCard
-                  label="Tampilkan Logo"
-                  active={form.showLogo}
-                  onClick={() => setForm({ ...form, showLogo: !form.showLogo })}
-                />
-
-                <ToggleCard
-                  label="Tampilkan Alamat"
-                  active={form.showAddress}
-                  onClick={() =>
-                    setForm({ ...form, showAddress: !form.showAddress })
-                  }
-                />
-
-                <ToggleCard
-                  label="Tampilkan Telepon"
-                  active={form.showPhone}
-                  onClick={() =>
-                    setForm({ ...form, showPhone: !form.showPhone })
-                  }
-                />
-              </div>
-
-              <button
-                onClick={saveSettings}
-                className="w-full rounded-2xl bg-[#6f8f5f] py-4 font-bold text-white hover:bg-[#5f7f4f] cursor-pointer"
-              >
-                Simpan Setting Struk
-              </button>
+              <p className="mt-4 text-sm text-[#8a947d]">
+                Preview ini akan berubah otomatis sesuai toggle dan input di kiri.
+              </p>
             </div>
           </div>
-
-          <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
-            <h2 className="mb-5 text-xl font-bold text-[#2f3a25]">
-              Preview Struk
-            </h2>
-
-            <div className="rounded-2xl bg-[#f8faf5] p-4 sm:p-6 border border-[#dfe8d2] overflow-x-auto">
-              <div
-                className={`mx-auto rounded-xl bg-white p-5 font-mono text-sm leading-relaxed text-[#2f3a25] shadow ${
-                  form.printerWidth === '32' ? 'max-w-[280px]' : 'max-w-[360px]'
-                }`}
-              >
-                {form.showLogo && (
-                  <div className="mb-3 flex justify-center">
-                    <img
-                      src="/logo.svg"
-                      alt="Logo"
-                      className="h-14 w-14 object-contain"
-                      draggable={false}
-                    />
-                  </div>
-                )}
-
-                <pre className="whitespace-pre-wrap">
-                  {buildReceiptPreview(form)}
-                </pre>
-              </div>
-            </div>
-
-            <p className="mt-4 text-sm text-[#8a947d]">
-              Preview ini akan berubah otomatis sesuai toggle dan input di kiri.
-            </p>
-          </div>
-        </div>
+        )}
       </section>
     </main>
   );
@@ -317,11 +392,21 @@ function ToggleCard({
           : 'border-gray-200 bg-gray-50 hover:bg-white'
       }`}
     >
-      <p className={active ? 'font-bold text-[#2f3a25]' : 'font-bold text-gray-400'}>
+      <p
+        className={
+          active ? 'font-bold text-[#2f3a25]' : 'font-bold text-gray-400'
+        }
+      >
         {label}
       </p>
 
-      <p className={active ? 'mt-1 text-xs text-[#6f7b62]' : 'mt-1 text-xs text-gray-400'}>
+      <p
+        className={
+          active
+            ? 'mt-1 text-xs text-[#6f7b62]'
+            : 'mt-1 text-xs text-gray-400'
+        }
+      >
         {active ? 'Aktif' : 'Nonaktif'}
       </p>
     </button>
@@ -353,8 +438,10 @@ function buildReceiptPreview(form: any) {
   }
 
   lines.push('-'.repeat(lineWidth));
+  lines.push(center('NO ANTRIAN: 12'));
+  lines.push('-'.repeat(lineWidth));
   lines.push('TRX: 12345678');
-  lines.push('11/05/2026 18.30');
+  lines.push('21/05/2026 18.30');
 
   if (form.cashierName) {
     lines.push(`Kasir: ${form.cashierName}`);
@@ -363,9 +450,13 @@ function buildReceiptPreview(form: any) {
   lines.push('-'.repeat(lineWidth));
   lines.push('Matcha Latte');
   lines.push(formatLine('1 x Rp20.000', 'Rp20.000'));
+  lines.push('Catatan: less ice');
+  lines.push('+ Extra Matcha Rp5.000');
   lines.push('Matcha Cream');
   lines.push(formatLine('2 x Rp18.000', 'Rp36.000'));
   lines.push('-'.repeat(lineWidth));
+  lines.push(formatLine('SUBTOTAL', 'Rp61.000'));
+  lines.push(formatLine('DISKON', '-Rp5.000'));
   lines.push(formatLine('TOTAL', 'Rp56.000'));
   lines.push(formatLine('BAYAR', 'Rp60.000'));
   lines.push(formatLine('KEMBALI', 'Rp4.000'));

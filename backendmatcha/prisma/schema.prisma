@@ -44,9 +44,16 @@ model RawMaterial {
 
 model Transaction {
   id               String            @id @default(uuid())
+  subtotal         Int               @default(0)
+  discount         Int               @default(0)
   total            Int
   paid             Int
   change           Int
+  queueNumber      Int?
+  note             String?
+  status           String            @default("COMPLETED")
+  cancelReason     String?
+  cancelledAt      DateTime?
   createdAt        DateTime          @default(now())
   paymentGateway   String?
   paymentReference String?
@@ -64,6 +71,8 @@ model TransactionItem {
   price         Int
   subtotal      Int
   profit        Int         @default(0)
+  note          String?
+  addOns        Json?
   product       Product     @relation(fields: [productId], references: [id])
   transaction   Transaction @relation(fields: [transactionId], references: [id])
 }
@@ -95,6 +104,20 @@ model Cashflow {
   category    String
   description String?
   createdAt   DateTime     @default(now())
+}
+
+model ReceiptSetting {
+  id           String   @id @default(uuid())
+  storeName    String   @default("Matchaboy")
+  address      String?
+  phone        String?
+  cashierName  String?
+  footer       String   @default("Terima kasih sudah membeli 🍵")
+  printerWidth Int      @default(32)
+  showLogo     Boolean  @default(true)
+  showAddress  Boolean  @default(true)
+  showPhone    Boolean  @default(true)
+  updatedAt    DateTime @updatedAt
 }
 
 enum Role {

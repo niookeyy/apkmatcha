@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import Sidebar from '../components/Sidebar';
 import Toast from '../components/ui/Toast';
 
@@ -43,6 +44,20 @@ export default function ProductsPage() {
     }, 3000);
   }
 
+  async function showSwal(
+    icon: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    text: string,
+  ) {
+    await Swal.fire({
+      icon,
+      title,
+      text,
+      confirmButtonText: 'Oke',
+      confirmButtonColor: '#2f4f32',
+    });
+  }
+
   function getImageSrc(imageUrl?: string) {
     if (!imageUrl) return '/logo.svg';
 
@@ -61,7 +76,11 @@ export default function ProductsPage() {
       else if (Array.isArray(data.data)) setProducts(data.data);
       else setProducts([]);
     } catch {
-      showToast('error', 'Gagal memuat produk', 'Pastikan backend menyala.');
+      await showSwal(
+        'error',
+        'Gagal memuat produk',
+        'Pastikan backend menyala.',
+      );
     }
   }
 
@@ -94,6 +113,15 @@ export default function ProductsPage() {
   }
 
   function removeIngredient(index: number) {
+    if (ingredients.length === 1) {
+      showToast(
+        'warning',
+        'Minimal 1 bahan',
+        'Produk baru minimal memiliki 1 bahan baku.',
+      );
+      return;
+    }
+
     setIngredients(ingredients.filter((_, i) => i !== index));
   }
 
@@ -107,7 +135,7 @@ export default function ProductsPage() {
 
   async function saveProduct() {
     if (!form.name || !form.price) {
-      showToast(
+      await showSwal(
         'warning',
         'Data belum lengkap',
         'Nama produk dan harga wajib diisi.',
@@ -142,14 +170,18 @@ export default function ProductsPage() {
           throw new Error(data.message || 'Gagal update produk');
         }
 
-        showToast('success', 'Produk diperbarui', 'Data produk berhasil disimpan.');
+        showToast(
+          'success',
+          'Produk diperbarui',
+          'Data produk berhasil disimpan.',
+        );
       } else {
         const validIngredients = ingredients.filter(
           (item) => item.rawMaterialName && item.qty,
         );
 
         if (validIngredients.length === 0) {
-          showToast(
+          await showSwal(
             'warning',
             'Resep belum diisi',
             'Minimal isi 1 bahan baku untuk produk baru.',
@@ -184,7 +216,11 @@ export default function ProductsPage() {
           );
         }
 
-        showToast('success', 'Produk ditambahkan', 'Produk baru berhasil dibuat.');
+        showToast(
+          'success',
+          'Produk ditambahkan',
+          'Produk baru berhasil dibuat.',
+        );
       }
 
       setOpen(false);
@@ -194,7 +230,7 @@ export default function ProductsPage() {
       setIngredients([{ rawMaterialName: '', qty: '' }]);
       fetchProducts();
     } catch (err: any) {
-      showToast(
+      await showSwal(
         'error',
         'Gagal menyimpan',
         err.message || 'Terjadi kesalahan.',
@@ -203,23 +239,35 @@ export default function ProductsPage() {
   }
 
   async function deleteProduct(id: string) {
-    const confirmDelete = confirm('Yakin ingin menghapus produk ini?');
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Hapus produk?',
+      text: 'Produk yang dihapus tidak bisa dikembalikan. Jika produk sudah dipakai transaksi, proses hapus bisa gagal.',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, hapus',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#2f4f32',
+      reverseButtons: true,
+    });
 
-    if (!confirmDelete) return;
+    if (!result.isConfirmed) return;
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/${id}`, {
         method: 'DELETE',
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error('Produk gagal dihapus.');
+        throw new Error(data?.message || 'Produk gagal dihapus.');
       }
 
       showToast('success', 'Produk dihapus', 'Produk berhasil dihapus.');
       fetchProducts();
     } catch (err: any) {
-      showToast(
+      await showSwal(
         'error',
         'Gagal hapus',
         err.message || 'Produk mungkin sudah dipakai di transaksi.',
@@ -239,10 +287,12 @@ export default function ProductsPage() {
 
       <Sidebar />
 
-      <section className="flex-1 p-8">
-        <div className="mb-8 flex items-center justify-between">
+      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
+        <div className="mb-8 flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#2f3a25]">Produk</h1>
+            <h1 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
+              Produk
+            </h1>
             <p className="mt-1 text-[#6f7b62]">
               Produk dibuat bersama resep. Stok dan HPP otomatis dari bahan baku.
             </p>
@@ -250,13 +300,92 @@ export default function ProductsPage() {
 
           <button
             onClick={openCreateModal}
-            className="rounded-xl bg-[#6f8f5f] px-5 py-3 font-semibold text-white hover:bg-[#5f7f4f] transition cursor-pointer"
+            className="rounded-xl bg-[#6f8f5f] px-5 py-3 font-semibold text-white hover:bg-[#5f7f4f] transition cursor-pointer max-md:w-full"
           >
             + Tambah Produk
           </button>
         </div>
 
-        <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
+        {/* MOBILE CARD LIST */}
+        <div className="hidden max-md:block space-y-4">
+          {products.length === 0 && (
+            <div className="rounded-3xl bg-white p-6 text-center text-[#8a947d] shadow border border-[#dfe8d2]">
+              Belum ada produk.
+            </div>
+          )}
+
+          {products.map((product) => (
+            <div
+              key={product.id}
+              className="rounded-3xl bg-white p-4 shadow border border-[#dfe8d2]"
+            >
+              <div className="flex gap-4">
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#dfe8d2] bg-[#eef5e8] flex items-center justify-center">
+                  <img
+                    src={getImageSrc(product.imageUrl)}
+                    alt={product.name}
+                    className={`h-full w-full ${
+                      product.imageUrl ? 'object-cover' : 'object-contain p-3'
+                    }`}
+                    draggable={false}
+                  />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-[#2f3a25] leading-snug">
+                        {product.name}
+                      </p>
+                      <p className="mt-1 text-xs text-[#6f7b62]">
+                        Kode: {product.code || '-'}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full bg-[#eef5e8] px-3 py-1 text-xs font-bold text-[#5f7f4f]">
+                      Stok {product.stock}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-2xl bg-[#f8fff4] p-3">
+                      <p className="text-xs text-[#8a947d]">Harga</p>
+                      <p className="font-bold text-[#008f67]">
+                        Rp{Number(product.price).toLocaleString('id-ID')}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-[#f8fff4] p-3">
+                      <p className="text-xs text-[#8a947d]">HPP</p>
+                      <p className="font-bold text-[#2f3a25]">
+                        Rp{Number(product.cost).toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => openEditModal(product)}
+                      className="rounded-xl border border-[#d6dfc8] px-3 py-3 text-sm font-semibold text-[#5f7f4f] hover:bg-[#eef5e8]"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => deleteProduct(product.id)}
+                      className="rounded-xl border border-red-200 px-3 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP TABLE */}
+        <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden max-md:hidden">
           <table className="w-full text-left">
             <thead className="bg-[#eef5e8] text-[#2f3a25]">
               <tr>
@@ -290,7 +419,9 @@ export default function ProductsPage() {
                         src={getImageSrc(product.imageUrl)}
                         alt={product.name}
                         className={`h-full w-full ${
-                          product.imageUrl ? 'object-cover' : 'object-contain p-3'
+                          product.imageUrl
+                            ? 'object-cover'
+                            : 'object-contain p-3'
                         }`}
                         draggable={false}
                       />
@@ -340,10 +471,10 @@ export default function ProductsPage() {
       </section>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-[#2f3a25]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl max-h-[90vh] overflow-y-auto max-md:p-5 max-md:rounded-2xl">
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <h2 className="text-2xl font-bold text-[#2f3a25] max-md:text-xl">
                 {editId ? 'Edit Produk' : 'Tambah Produk + Resep'}
               </h2>
 
@@ -390,7 +521,7 @@ export default function ProductsPage() {
                       });
                     }
                   }}
-                  className="w-full rounded-xl border border-[#dfe8d2] bg-white px-4 py-3 text-[#2f3a25] file:mr-4 file:rounded-lg file:border-0 file:bg-[#6f8f5f] file:px-4 file:py-2 file:text-white"
+                  className="w-full rounded-xl border border-[#dfe8d2] bg-white px-4 py-3 text-[#2f3a25] file:mr-4 file:rounded-lg file:border-0 file:bg-[#6f8f5f] file:px-4 file:py-2 file:text-white max-md:file:mb-2 max-md:file:w-full"
                 />
               </div>
 
@@ -420,14 +551,14 @@ export default function ProductsPage() {
 
             {!editId && (
               <div className="mt-6">
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex items-center justify-between gap-3 max-md:flex-col max-md:items-start">
                   <h3 className="font-bold text-[#2f3a25]">
                     Resep / Bahan Baku
                   </h3>
 
                   <button
                     onClick={addIngredient}
-                    className="rounded-xl border border-[#6f8f5f] px-4 py-2 text-sm font-semibold text-[#6f8f5f] cursor-pointer"
+                    className="rounded-xl border border-[#6f8f5f] px-4 py-2 text-sm font-semibold text-[#6f8f5f] cursor-pointer max-md:w-full"
                   >
                     + Tambah Bahan
                   </button>
@@ -435,7 +566,10 @@ export default function ProductsPage() {
 
                 <div className="space-y-3">
                   {ingredients.map((item, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-3">
+                    <div
+                      key={index}
+                      className="grid grid-cols-12 gap-3 max-md:grid-cols-1"
+                    >
                       <input
                         placeholder="Nama bahan baku"
                         value={item.rawMaterialName}
@@ -446,7 +580,7 @@ export default function ProductsPage() {
                             e.target.value,
                           )
                         }
-                        className="col-span-7 rounded-xl border border-[#dfe8d2] px-4 py-3 text-[#2f3a25] placeholder:text-[#b8c4ad] outline-none"
+                        className="col-span-7 rounded-xl border border-[#dfe8d2] px-4 py-3 text-[#2f3a25] placeholder:text-[#b8c4ad] outline-none max-md:col-span-1"
                       />
 
                       <input
@@ -456,12 +590,12 @@ export default function ProductsPage() {
                         onChange={(e) =>
                           updateIngredient(index, 'qty', e.target.value)
                         }
-                        className="col-span-3 rounded-xl border border-[#dfe8d2] px-4 py-3 text-[#2f3a25] placeholder:text-[#b8c4ad] outline-none"
+                        className="col-span-3 rounded-xl border border-[#dfe8d2] px-4 py-3 text-[#2f3a25] placeholder:text-[#b8c4ad] outline-none max-md:col-span-1"
                       />
 
                       <button
                         onClick={() => removeIngredient(index)}
-                        className="col-span-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                        className="col-span-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer max-md:col-span-1 max-md:py-3"
                       >
                         Hapus
                       </button>
@@ -483,17 +617,17 @@ export default function ProductsPage() {
               </div>
             )}
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3 max-md:flex-col">
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-xl border border-[#dfe8d2] px-5 py-3 text-[#6f7b62] hover:bg-[#eef5e8] cursor-pointer"
+                className="rounded-xl border border-[#dfe8d2] px-5 py-3 text-[#6f7b62] hover:bg-[#eef5e8] cursor-pointer max-md:w-full"
               >
                 Batal
               </button>
 
               <button
                 onClick={saveProduct}
-                className="rounded-xl bg-[#6f8f5f] px-5 py-3 font-semibold text-white hover:bg-[#5f7f4f] cursor-pointer"
+                className="rounded-xl bg-[#6f8f5f] px-5 py-3 font-semibold text-white hover:bg-[#5f7f4f] cursor-pointer max-md:w-full"
               >
                 {editId ? 'Simpan Perubahan' : 'Simpan Produk'}
               </button>

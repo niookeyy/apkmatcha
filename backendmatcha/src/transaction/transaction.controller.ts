@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 
 @Controller('transactions')
 export class TransactionController {
-  constructor(private transactionService: TransactionService) {}
+  constructor(private readonly transactionService: TransactionService) {}
 
   @Post()
   create(@Body() body: any) {
@@ -15,21 +15,28 @@ export class TransactionController {
     return this.transactionService.findAll();
   }
 
+  @Patch(':id/cancel')
+  cancel(@Param('id') id: string, @Body() body: any) {
+    return this.transactionService.cancel(id, body?.reason);
+  }
+
   @Get(':id/status')
   getStatus(@Param('id') id: string) {
     return this.transactionService.getStatus(id);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.transactionService.findOne(id);
-  }
   @Get(':id/receipt')
   receipt(@Param('id') id: string) {
     return this.transactionService.receipt(id);
   }
+
   @Get(':id/receipt-text')
   receiptText(@Param('id') id: string) {
     return this.transactionService.receiptText(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.transactionService.findOne(id);
   }
 }

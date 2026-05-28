@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import Sidebar from '../components/Sidebar';
 import Toast from '../components/ui/Toast';
 
@@ -51,27 +52,57 @@ export default function StockOpnamePage() {
     }, 3000);
   }
 
-  async function fetchMaterials() {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/raw-materials`);
-    const data = await res.json();
+  async function showSwal(
+    icon: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    text: string,
+  ) {
+    await Swal.fire({
+      icon,
+      title,
+      text,
+      confirmButtonText: 'Oke',
+      confirmButtonColor: '#2f4f32',
+    });
+  }
 
-    if (Array.isArray(data)) setMaterials(data);
-    else if (Array.isArray(data.data)) setMaterials(data.data);
-    else setMaterials([]);
+  async function fetchMaterials() {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/raw-materials`);
+      const data = await res.json();
+
+      if (Array.isArray(data)) setMaterials(data);
+      else if (Array.isArray(data.data)) setMaterials(data.data);
+      else setMaterials([]);
+    } catch {
+      await showSwal(
+        'error',
+        'Gagal memuat bahan baku',
+        'Pastikan backend menyala.',
+      );
+    }
   }
 
   async function fetchOpnames() {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stock-opname`);
-    const data = await res.json();
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stock-opname`);
+      const data = await res.json();
 
-    if (Array.isArray(data)) setOpnames(data);
-    else if (Array.isArray(data.data)) setOpnames(data.data);
-    else setOpnames([]);
+      if (Array.isArray(data)) setOpnames(data);
+      else if (Array.isArray(data.data)) setOpnames(data.data);
+      else setOpnames([]);
+    } catch {
+      await showSwal(
+        'error',
+        'Gagal memuat riwayat opname',
+        'Pastikan backend menyala.',
+      );
+    }
   }
 
   async function saveOpname() {
     if (!rawMaterialId || realStock === '') {
-      showToast(
+      await showSwal(
         'warning',
         'Data belum lengkap',
         'Pilih bahan baku dan isi stok real.',
@@ -79,35 +110,71 @@ export default function StockOpnamePage() {
       return;
     }
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stock-opname`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        rawMaterialId,
-        realStock: Number(realStock),
-        note,
-      }),
-    });
-
-    if (!res.ok) {
-      showToast('error', 'Gagal opname', 'Stok opname gagal disimpan.');
+    if (Number(realStock) < 0) {
+      await showSwal(
+        'warning',
+        'Stok tidak valid',
+        'Stok real tidak boleh minus.',
+      );
       return;
     }
 
-    showToast(
-      'success',
-      'Stock opname berhasil',
-      'Stok sistem sudah disesuaikan dengan stok real.',
-    );
+    const selectedName = selectedMaterial?.name || 'bahan baku ini';
 
-    setRawMaterialId('');
-    setRealStock('');
-    setNote('');
-    setMaterialSearch('');
-    setMaterialDropdownOpen(false);
+    const result = await Swal.fire({
+      icon: 'question',
+      title: 'Simpan stock opname?',
+      text: `Stok ${selectedName} akan disesuaikan dari ${systemStock} menjadi ${Number(
+        realStock,
+      )}.`,
+      showCancelButton: true,
+      confirmButtonText: 'Ya, simpan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#2f4f32',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
 
-    fetchMaterials();
-    fetchOpnames();
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stock-opname`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rawMaterialId,
+          realStock: Number(realStock),
+          note,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Stok opname gagal disimpan.');
+      }
+
+      showToast(
+        'success',
+        'Stock opname berhasil',
+        'Stok sistem sudah disesuaikan dengan stok real.',
+      );
+
+      setRawMaterialId('');
+      setRealStock('');
+      setNote('');
+      setMaterialSearch('');
+      setMaterialDropdownOpen(false);
+
+      fetchMaterials();
+      fetchOpnames();
+    } catch (err: any) {
+      await showSwal(
+        'error',
+        'Gagal opname',
+        err.message || 'Stok opname gagal disimpan.',
+      );
+    }
   }
 
   return (
@@ -122,9 +189,9 @@ export default function StockOpnamePage() {
 
       <Sidebar />
 
-      <section className="flex-1 p-8">
+      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#2f3a25]">
+          <h1 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
             Stock Opname
           </h1>
           <p className="mt-1 text-[#6f7b62]">
@@ -133,7 +200,7 @@ export default function StockOpnamePage() {
         </div>
 
         <div className="mb-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-1 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
+          <div className="xl:col-span-1 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
             <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
               Form Opname
             </h2>
@@ -179,7 +246,7 @@ export default function StockOpnamePage() {
                 </button>
 
                 {materialDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-[92px] z-50 rounded-2xl border border-[#dfe8d2] bg-white p-3 shadow-2xl">
+                  <div className="absolute left-0 right-0 top-[92px] z-50 rounded-2xl border border-[#dfe8d2] bg-white p-3 shadow-2xl max-md:fixed max-md:left-4 max-md:right-4 max-md:top-24">
                     <input
                       value={materialSearch}
                       onChange={(e) => setMaterialSearch(e.target.value)}
@@ -309,7 +376,7 @@ export default function StockOpnamePage() {
             </div>
           </div>
 
-          <div className="xl:col-span-2 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
+          <div className="xl:col-span-2 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
             <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
               Ringkasan Bahan Baku
             </h2>
@@ -334,7 +401,7 @@ export default function StockOpnamePage() {
           </div>
         </div>
 
-        <div className="mb-5 flex gap-3">
+        <div className="mb-5 flex gap-3 max-md:flex-col">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -347,75 +414,77 @@ export default function StockOpnamePage() {
               fetchMaterials();
               fetchOpnames();
             }}
-            className="rounded-xl border border-[#6f8f5f] px-6 font-semibold text-[#6f8f5f] hover:bg-[#eef5e8] cursor-pointer"
+            className="rounded-xl border border-[#6f8f5f] px-6 py-3 font-semibold text-[#6f8f5f] hover:bg-[#eef5e8] cursor-pointer max-md:w-full"
           >
             Refresh
           </button>
         </div>
 
         <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-[#eef5e8] text-[#2f3a25]">
-              <tr>
-                <th className="px-6 py-4">Tanggal</th>
-                <th className="px-6 py-4">Bahan Baku</th>
-                <th className="px-6 py-4">Stok Sistem</th>
-                <th className="px-6 py-4">Stok Real</th>
-                <th className="px-6 py-4">Selisih</th>
-                <th className="px-6 py-4">Catatan</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredOpnames.length === 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left">
+              <thead className="bg-[#eef5e8] text-[#2f3a25]">
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-8 text-center text-[#8a947d]"
-                  >
-                    Belum ada riwayat stock opname.
-                  </td>
+                  <th className="px-6 py-4">Tanggal</th>
+                  <th className="px-6 py-4">Bahan Baku</th>
+                  <th className="px-6 py-4">Stok Sistem</th>
+                  <th className="px-6 py-4">Stok Real</th>
+                  <th className="px-6 py-4">Selisih</th>
+                  <th className="px-6 py-4">Catatan</th>
                 </tr>
-              )}
+              </thead>
 
-              {filteredOpnames.map((opname) => (
-                <tr key={opname.id} className="border-t border-[#eef2e8]">
-                  <td className="px-6 py-4 text-[#6f7b62]">
-                    {new Date(opname.createdAt).toLocaleString('id-ID')}
-                  </td>
+              <tbody>
+                {filteredOpnames.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-8 text-center text-[#8a947d]"
+                    >
+                      Belum ada riwayat stock opname.
+                    </td>
+                  </tr>
+                )}
 
-                  <td className="px-6 py-4 font-semibold text-[#2f3a25]">
-                    {opname.rawMaterial?.name || '-'}
-                  </td>
+                {filteredOpnames.map((opname) => (
+                  <tr key={opname.id} className="border-t border-[#eef2e8]">
+                    <td className="px-6 py-4 text-[#6f7b62]">
+                      {new Date(opname.createdAt).toLocaleString('id-ID')}
+                    </td>
 
-                  <td className="px-6 py-4 text-[#2f3a25]">
-                    {opname.systemStock}
-                  </td>
+                    <td className="px-6 py-4 font-semibold text-[#2f3a25]">
+                      {opname.rawMaterial?.name || '-'}
+                    </td>
 
-                  <td className="px-6 py-4 text-[#2f3a25]">
-                    {opname.realStock}
-                  </td>
+                    <td className="px-6 py-4 text-[#2f3a25]">
+                      {opname.systemStock}
+                    </td>
 
-                  <td
-                    className={`px-6 py-4 font-bold ${
-                      opname.difference < 0
-                        ? 'text-red-600'
-                        : opname.difference > 0
-                          ? 'text-emerald-600'
-                          : 'text-[#2f3a25]'
-                    }`}
-                  >
-                    {opname.difference > 0 ? '+' : ''}
-                    {opname.difference}
-                  </td>
+                    <td className="px-6 py-4 text-[#2f3a25]">
+                      {opname.realStock}
+                    </td>
 
-                  <td className="px-6 py-4 text-[#6f7b62]">
-                    {opname.note || '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td
+                      className={`px-6 py-4 font-bold ${
+                        opname.difference < 0
+                          ? 'text-red-600'
+                          : opname.difference > 0
+                            ? 'text-emerald-600'
+                            : 'text-[#2f3a25]'
+                      }`}
+                    >
+                      {opname.difference > 0 ? '+' : ''}
+                      {opname.difference}
+                    </td>
+
+                    <td className="px-6 py-4 text-[#6f7b62]">
+                      {opname.note || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>
@@ -426,7 +495,9 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl bg-[#f4f7ef] p-5 border border-[#dfe8d2]">
       <p className="text-sm text-[#6f7b62]">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-[#2f3a25]">{value}</p>
+      <p className="mt-2 text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
+        {value}
+      </p>
     </div>
   );
 }
