@@ -104,6 +104,7 @@ export default function Sidebar() {
 
   return (
     <>
+      {/* MOBILE HAMBURGER BUTTON */}
       <button
         onClick={() => setMobileOpen(true)}
         className="fixed left-4 top-4 z-50 rounded-xl bg-[#2f4f32] px-4 py-3 font-bold text-white shadow md:hidden"
@@ -111,10 +112,15 @@ export default function Sidebar() {
         ☰
       </button>
 
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto bg-[#2f4f32] p-6 text-white md:block">
+      {/* DESKTOP SIDEBAR SPACE HOLDER */}
+      <div className="hidden w-64 shrink-0 md:block" />
+
+      {/* DESKTOP FIXED SIDEBAR */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 overflow-y-auto bg-[#2f4f32] p-6 text-white md:block">
         {SidebarContent}
       </aside>
 
+      {/* MOBILE SIDEBAR DRAWER */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
