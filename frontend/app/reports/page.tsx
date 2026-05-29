@@ -16,6 +16,20 @@ export default function ReportsPage() {
     return `Rp${Number(value || 0).toLocaleString('id-ID')}`;
   }
 
+  function formatCompact(value: number) {
+    const number = Number(value || 0);
+
+    if (number >= 1000000) {
+      return `Rp${(number / 1000000).toFixed(1)}jt`;
+    }
+
+    if (number >= 1000) {
+      return `Rp${(number / 1000).toFixed(0)}rb`;
+    }
+
+    return `Rp${number.toLocaleString('id-ID')}`;
+  }
+
   async function fetchReports() {
     try {
       setLoading(true);
@@ -112,16 +126,17 @@ export default function ReportsPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#f4f7ef] flex">
+    <main className="min-h-screen bg-[#f4f7ef] flex overflow-x-hidden">
       <Sidebar />
 
-      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
-        <div className="mb-8 flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-4">
-          <div>
+      <section className="flex-1 min-w-0 p-8 max-md:w-full max-md:p-4 max-md:pt-20 max-md:overflow-x-hidden">
+        <div className="mb-8 flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
+          <div className="min-w-0">
             <h1 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
               Laporan
             </h1>
-            <p className="mt-1 text-[#6f7b62]">
+
+            <p className="mt-1 text-[#6f7b62] max-md:text-sm">
               Ringkasan penjualan, cashflow, laba rugi, dan produk terlaris.
             </p>
           </div>
@@ -150,35 +165,151 @@ export default function ReportsPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+            {/* SUMMARY CARDS */}
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-5 max-md:grid-cols-2 max-sm:grid-cols-2">
               <ReportCard
                 label="Penjualan Hari Ini"
-                value={formatRupiah(today?.totalSales)}
+                value={formatCompact(today?.totalSales)}
                 sub={`${today?.totalTransactions || 0} transaksi`}
               />
 
               <ReportCard
                 label="Total Penjualan"
-                value={formatRupiah(summary?.totalSales)}
+                value={formatCompact(summary?.totalSales)}
                 sub={`${summary?.totalTransactions || 0} transaksi`}
               />
 
               <ReportCard
                 label="Laba Kotor"
-                value={formatRupiah(profitLoss?.grossProfit)}
+                value={formatCompact(profitLoss?.grossProfit)}
                 sub="Revenue - HPP"
                 green
               />
 
               <ReportCard
                 label="Saldo Cashflow"
-                value={formatRupiah(cashflow?.balance)}
-                sub="Masuk - Keluar"
+                value={formatCompact(cashflow?.balance)}
+                sub="Masuk - keluar"
               />
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
+            {/* MOBILE LABA RUGI & CASHFLOW */}
+            <div className="hidden max-md:block space-y-5">
+              <div className="rounded-3xl bg-white p-5 shadow border border-[#dfe8d2]">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-bold text-[#2f3a25]">
+                    Laba Rugi
+                  </h2>
+
+                  <span className="rounded-full bg-[#eef5e8] px-3 py-1 text-xs font-bold text-[#5f7f4f]">
+                    Live
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <ReportRow
+                    label="Revenue"
+                    value={formatRupiah(profitLoss?.revenue)}
+                  />
+                  <ReportRow
+                    label="HPP / COGS"
+                    value={formatRupiah(profitLoss?.cogs)}
+                  />
+                  <ReportRow
+                    label="Laba Kotor"
+                    value={formatRupiah(profitLoss?.grossProfit)}
+                  />
+                  <ReportRow
+                    label="Pengeluaran"
+                    value={formatRupiah(profitLoss?.expenses)}
+                  />
+
+                  <div className="border-t border-[#eef2e8] pt-4">
+                    <ReportRow
+                      label="Laba Bersih"
+                      value={formatRupiah(profitLoss?.netProfit)}
+                      bold
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl bg-white p-5 shadow border border-[#dfe8d2]">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-bold text-[#2f3a25]">
+                    Cashflow
+                  </h2>
+
+                  <span className="rounded-full bg-[#eef5e8] px-3 py-1 text-xs font-bold text-[#5f7f4f]">
+                    Ringkasan
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <ReportRow
+                    label="Total Masuk"
+                    value={formatRupiah(cashflow?.totalIn)}
+                  />
+                  <ReportRow
+                    label="Total Keluar"
+                    value={formatRupiah(cashflow?.totalOut)}
+                  />
+
+                  <div className="border-t border-[#eef2e8] pt-4">
+                    <ReportRow
+                      label="Balance"
+                      value={formatRupiah(cashflow?.balance)}
+                      bold
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl bg-white p-5 shadow border border-[#dfe8d2]">
+                <h2 className="mb-5 text-lg font-bold text-[#2f3a25]">
+                  Produk Terlaris
+                </h2>
+
+                {topProducts.length === 0 ? (
+                  <p className="rounded-2xl bg-[#eef5e8] p-4 text-center text-sm text-[#8a947d]">
+                    Belum ada data produk terjual.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {topProducts.map((item, index) => (
+                      <div
+                        key={item.productId}
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-[#eef2e8] p-4"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eef5e8] text-sm font-bold text-[#5f7f4f]">
+                            {index + 1}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-[#2f3a25]">
+                              {item.name}
+                            </p>
+
+                            <p className="mt-1 text-xs text-[#6f7b62]">
+                              Qty terjual: {item.totalQty}
+                            </p>
+                          </div>
+                        </div>
+
+                        <p className="shrink-0 text-sm font-bold text-[#008f67]">
+                          {formatCompact(item.totalRevenue)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* DESKTOP LABA RUGI & CASHFLOW */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-md:hidden">
+              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
                 <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
                   Laba Rugi
                 </h2>
@@ -211,7 +342,7 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
+              <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2]">
                 <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
                   Cashflow
                 </h2>
@@ -237,56 +368,55 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
-              <div className="p-6 border-b border-[#eef2e8] max-md:p-5">
+            {/* DESKTOP PRODUK TERLARIS */}
+            <div className="mt-6 rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden max-md:hidden">
+              <div className="p-6 border-b border-[#eef2e8]">
                 <h2 className="text-xl font-bold text-[#2f3a25]">
                   Produk Terlaris
                 </h2>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px] text-left">
-                  <thead className="bg-[#eef5e8] text-[#2f3a25]">
+              <table className="w-full text-left">
+                <thead className="bg-[#eef5e8] text-[#2f3a25]">
+                  <tr>
+                    <th className="px-6 py-4">Produk</th>
+                    <th className="px-6 py-4">Qty Terjual</th>
+                    <th className="px-6 py-4">Revenue</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {topProducts.length === 0 && (
                     <tr>
-                      <th className="px-6 py-4">Produk</th>
-                      <th className="px-6 py-4">Qty Terjual</th>
-                      <th className="px-6 py-4">Revenue</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {topProducts.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="px-6 py-8 text-center text-[#8a947d]"
-                        >
-                          Belum ada data produk terjual.
-                        </td>
-                      </tr>
-                    )}
-
-                    {topProducts.map((item) => (
-                      <tr
-                        key={item.productId}
-                        className="border-t border-[#eef2e8]"
+                      <td
+                        colSpan={3}
+                        className="px-6 py-8 text-center text-[#8a947d]"
                       >
-                        <td className="px-6 py-4 font-semibold text-[#2f3a25]">
-                          {item.name}
-                        </td>
+                        Belum ada data produk terjual.
+                      </td>
+                    </tr>
+                  )}
 
-                        <td className="px-6 py-4 text-[#2f3a25]">
-                          {item.totalQty}
-                        </td>
+                  {topProducts.map((item) => (
+                    <tr
+                      key={item.productId}
+                      className="border-t border-[#eef2e8]"
+                    >
+                      <td className="px-6 py-4 font-semibold text-[#2f3a25]">
+                        {item.name}
+                      </td>
 
-                        <td className="px-6 py-4 text-[#008f67] font-semibold">
-                          {formatRupiah(item.totalRevenue)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      <td className="px-6 py-4 text-[#2f3a25]">
+                        {item.totalQty}
+                      </td>
+
+                      <td className="px-6 py-4 text-[#008f67] font-semibold">
+                        {formatRupiah(item.totalRevenue)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}
@@ -309,6 +439,7 @@ function ReportCard({
   return (
     <div className="rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
       <p className="text-sm text-[#6f7b62]">{label}</p>
+
       <h3
         className={`mt-3 text-2xl font-bold max-md:text-xl ${
           green ? 'text-[#008f67]' : 'text-[#2f3a25]'
@@ -316,6 +447,7 @@ function ReportCard({
       >
         {value}
       </h3>
+
       <p className="mt-2 text-sm text-[#8a947d]">{sub}</p>
     </div>
   );
@@ -332,12 +464,16 @@ function ReportRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <p className={bold ? 'font-bold text-[#2f3a25]' : 'text-[#6f7b62]'}>
+      <p
+        className={`min-w-0 ${
+          bold ? 'font-bold text-[#2f3a25]' : 'text-[#6f7b62]'
+        }`}
+      >
         {label}
       </p>
 
       <p
-        className={`text-right ${
+        className={`shrink-0 text-right ${
           bold ? 'font-bold text-[#008f67]' : 'text-[#2f3a25]'
         }`}
       >

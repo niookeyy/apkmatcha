@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Swal from 'sweetalert2';
 import Sidebar from '../components/Sidebar';
 import Toast from '../components/ui/Toast';
 
@@ -49,20 +48,6 @@ export default function RawMaterialsPage() {
     }, 3000);
   }
 
-  async function showSwal(
-    icon: 'success' | 'error' | 'warning' | 'info',
-    title: string,
-    text: string,
-  ) {
-    await Swal.fire({
-      icon,
-      title,
-      text,
-      confirmButtonText: 'Oke',
-      confirmButtonColor: '#2f4f32',
-    });
-  }
-
   async function fetchMaterials() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/raw-materials`);
@@ -72,11 +57,7 @@ export default function RawMaterialsPage() {
       else if (Array.isArray(data.data)) setMaterials(data.data);
       else setMaterials([]);
     } catch {
-      await showSwal(
-        'error',
-        'Gagal memuat bahan baku',
-        'Pastikan backend menyala.',
-      );
+      showToast('error', 'Gagal memuat bahan baku', 'Pastikan backend menyala.');
     }
   }
 
@@ -104,28 +85,10 @@ export default function RawMaterialsPage() {
 
   async function saveMaterial() {
     if (!form.name || !form.unit || !form.stock || !form.cost) {
-      await showSwal(
+      showToast(
         'warning',
         'Data belum lengkap',
         'Nama, satuan, stok, dan total modal wajib diisi.',
-      );
-      return;
-    }
-
-    if (Number(form.stock) <= 0) {
-      await showSwal(
-        'warning',
-        'Stok tidak valid',
-        'Stok harus lebih dari 0.',
-      );
-      return;
-    }
-
-    if (Number(form.cost) <= 0) {
-      await showSwal(
-        'warning',
-        'Modal tidak valid',
-        'Total modal harus lebih dari 0.',
       );
       return;
     }
@@ -174,7 +137,7 @@ export default function RawMaterialsPage() {
       });
       fetchMaterials();
     } catch (err: any) {
-      await showSwal(
+      showToast(
         'error',
         'Gagal menyimpan',
         err.message || 'Terjadi kesalahan.',
@@ -183,19 +146,9 @@ export default function RawMaterialsPage() {
   }
 
   async function deleteMaterial(id: string) {
-    const result = await Swal.fire({
-      icon: 'warning',
-      title: 'Hapus bahan baku?',
-      text: 'Bahan baku yang dihapus tidak bisa dikembalikan. Jika masih dipakai resep produk, proses hapus bisa gagal.',
-      showCancelButton: true,
-      confirmButtonText: 'Ya, hapus',
-      cancelButtonText: 'Batal',
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#2f4f32',
-      reverseButtons: true,
-    });
+    const confirmDelete = confirm('Yakin ingin menghapus bahan baku ini?');
 
-    if (!result.isConfirmed) return;
+    if (!confirmDelete) return;
 
     try {
       const res = await fetch(
@@ -205,16 +158,14 @@ export default function RawMaterialsPage() {
         },
       );
 
-      const data = await res.json().catch(() => null);
-
       if (!res.ok) {
-        throw new Error(data?.message || 'Bahan baku tidak bisa dihapus.');
+        throw new Error('Bahan baku tidak bisa dihapus.');
       }
 
       showToast('success', 'Bahan baku dihapus', 'Data berhasil dihapus.');
       fetchMaterials();
     } catch (err: any) {
-      await showSwal(
+      showToast(
         'error',
         'Gagal hapus',
         err.message || 'Bahan baku mungkin masih dipakai di resep produk.',
@@ -223,7 +174,7 @@ export default function RawMaterialsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7ef] flex">
+    <main className="min-h-screen bg-[#f4f7ef] flex overflow-x-hidden">
       <Toast
         show={toast.show}
         type={toast.type}
@@ -234,13 +185,13 @@ export default function RawMaterialsPage() {
 
       <Sidebar />
 
-      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
-        <div className="mb-8 flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-4">
-          <div>
+      <section className="flex-1 min-w-0 p-8 max-md:w-full max-md:p-4 max-md:pt-20 max-md:overflow-x-hidden">
+        <div className="mb-8 flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
+          <div className="min-w-0">
             <h1 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
               Bahan Baku
             </h1>
-            <p className="mt-1 text-[#6f7b62]">
+            <p className="mt-1 text-[#6f7b62] max-md:text-sm">
               Kelola stok bahan baku dan modal untuk perhitungan HPP.
             </p>
           </div>
@@ -269,81 +220,158 @@ export default function RawMaterialsPage() {
           </button>
         </div>
 
-        <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left">
-              <thead className="bg-[#eef5e8] text-[#2f3a25]">
+        {/* MOBILE CARD LIST */}
+        <div className="hidden max-md:block space-y-4">
+          {filteredMaterials.length === 0 && (
+            <div className="rounded-3xl bg-white p-6 text-center text-[#8a947d] shadow border border-[#dfe8d2]">
+              Belum ada bahan baku.
+            </div>
+          )}
+
+          {filteredMaterials.map((material) => (
+            <div
+              key={material.id}
+              className="rounded-3xl bg-white p-5 shadow border border-[#dfe8d2]"
+            >
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-lg font-bold text-[#2f3a25] leading-snug">
+                    {material.name}
+                  </p>
+                  <p className="mt-1 text-sm text-[#6f7b62]">
+                    Satuan: {material.unit}
+                  </p>
+                </div>
+
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                    Number(material.stock) <= 0
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {Number(material.stock) <= 0 ? 'Kosong' : 'Tersedia'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <InfoBox
+                  label="Stok"
+                  value={`${Number(material.stock).toLocaleString('id-ID')} ${
+                    material.unit
+                  }`}
+                />
+
+                <InfoBox
+                  label="Modal / Satuan"
+                  value={formatRupiah(material.costPerUnit)}
+                  green
+                />
+
+                <InfoBox
+                  label="Total Modal"
+                  value={formatRupiah(material.cost)}
+                />
+
+                <InfoBox
+                  label="ID Bahan"
+                  value={String(material.id).slice(0, 8)}
+                />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => openEditModal(material)}
+                  className="rounded-xl border border-[#d6dfc8] px-3 py-3 text-sm font-semibold text-[#5f7f4f] hover:bg-[#eef5e8] cursor-pointer"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => deleteMaterial(material.id)}
+                  className="rounded-xl border border-red-200 px-3 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 cursor-pointer"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP TABLE */}
+        <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden max-md:hidden">
+          <table className="w-full text-left">
+            <thead className="bg-[#eef5e8] text-[#2f3a25]">
+              <tr>
+                <th className="px-6 py-4">Nama Bahan</th>
+                <th className="px-6 py-4">Satuan</th>
+                <th className="px-6 py-4">Stok</th>
+                <th className="px-6 py-4">Total Modal</th>
+                <th className="px-6 py-4">Modal / Satuan</th>
+                <th className="px-6 py-4 text-right">Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredMaterials.length === 0 && (
                 <tr>
-                  <th className="px-6 py-4">Nama Bahan</th>
-                  <th className="px-6 py-4">Satuan</th>
-                  <th className="px-6 py-4">Stok</th>
-                  <th className="px-6 py-4">Total Modal</th>
-                  <th className="px-6 py-4">Modal / Satuan</th>
-                  <th className="px-6 py-4 text-right">Aksi</th>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-8 text-center text-[#8a947d]"
+                  >
+                    Belum ada bahan baku.
+                  </td>
                 </tr>
-              </thead>
+              )}
 
-              <tbody>
-                {filteredMaterials.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-8 text-center text-[#8a947d]"
+              {filteredMaterials.map((material) => (
+                <tr key={material.id} className="border-t border-[#eef2e8]">
+                  <td className="px-6 py-4 font-semibold text-[#2f3a25]">
+                    {material.name}
+                  </td>
+
+                  <td className="px-6 py-4 text-[#6f7b62]">
+                    {material.unit}
+                  </td>
+
+                  <td className="px-6 py-4 text-[#2f3a25]">
+                    {Number(material.stock).toLocaleString('id-ID')}{' '}
+                    {material.unit}
+                  </td>
+
+                  <td className="px-6 py-4 text-[#2f3a25]">
+                    {formatRupiah(material.cost)}
+                  </td>
+
+                  <td className="px-6 py-4 text-[#008f67] font-semibold">
+                    {formatRupiah(material.costPerUnit)}
+                  </td>
+
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => openEditModal(material)}
+                      className="mr-2 rounded-lg border border-[#d6dfc8] px-3 py-2 text-sm text-[#5f7f4f] hover:bg-[#eef5e8] cursor-pointer"
                     >
-                      Belum ada bahan baku.
-                    </td>
-                  </tr>
-                )}
+                      Edit
+                    </button>
 
-                {filteredMaterials.map((material) => (
-                  <tr key={material.id} className="border-t border-[#eef2e8]">
-                    <td className="px-6 py-4 font-semibold text-[#2f3a25]">
-                      {material.name}
-                    </td>
-
-                    <td className="px-6 py-4 text-[#6f7b62]">
-                      {material.unit}
-                    </td>
-
-                    <td className="px-6 py-4 text-[#2f3a25]">
-                      {Number(material.stock).toLocaleString('id-ID')}{' '}
-                      {material.unit}
-                    </td>
-
-                    <td className="px-6 py-4 text-[#2f3a25]">
-                      {formatRupiah(material.cost)}
-                    </td>
-
-                    <td className="px-6 py-4 text-[#008f67] font-semibold">
-                      {formatRupiah(material.costPerUnit)}
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => openEditModal(material)}
-                        className="mr-2 rounded-lg border border-[#d6dfc8] px-3 py-2 text-sm text-[#5f7f4f] hover:bg-[#eef5e8] cursor-pointer"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() => deleteMaterial(material.id)}
-                        className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
-                      >
-                        Hapus
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    <button
+                      onClick={() => deleteMaterial(material.id)}
+                      className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
+                    >
+                      Hapus
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-2xl max-h-[90vh] overflow-y-auto max-md:p-5 max-md:rounded-2xl">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-2xl max-md:p-5 max-md:rounded-2xl">
             <div className="mb-6 flex items-center justify-between gap-4">
               <h2 className="text-2xl font-bold text-[#2f3a25] max-md:text-xl">
                 {editId ? 'Edit Bahan Baku' : 'Tambah Bahan Baku'}
@@ -391,7 +419,7 @@ export default function RawMaterialsPage() {
               <div className="rounded-xl bg-[#eef5e8] p-4 text-sm text-[#6f7b62]">
                 Modal per satuan akan dihitung otomatis:
                 <span className="ml-1 font-bold text-[#2f3a25]">
-                  {form.stock && form.cost && Number(form.stock) > 0
+                  {form.stock && form.cost
                     ? formatRupiah(Number(form.cost) / Number(form.stock))
                     : 'Rp0'}
                 </span>
@@ -417,5 +445,28 @@ export default function RawMaterialsPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function InfoBox({
+  label,
+  value,
+  green = false,
+}: {
+  label: string;
+  value: string;
+  green?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-[#f8fff4] p-3 border border-[#eef2e8]">
+      <p className="text-xs text-[#8a947d]">{label}</p>
+      <p
+        className={`mt-1 break-words text-sm font-bold ${
+          green ? 'text-[#008f67]' : 'text-[#2f3a25]'
+        }`}
+      >
+        {value}
+      </p>
+    </div>
   );
 }

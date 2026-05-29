@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Swal from 'sweetalert2';
 import Sidebar from '../components/Sidebar';
 import Toast from '../components/ui/Toast';
 
@@ -52,20 +51,6 @@ export default function StockOpnamePage() {
     }, 3000);
   }
 
-  async function showSwal(
-    icon: 'success' | 'error' | 'warning' | 'info',
-    title: string,
-    text: string,
-  ) {
-    await Swal.fire({
-      icon,
-      title,
-      text,
-      confirmButtonText: 'Oke',
-      confirmButtonColor: '#2f4f32',
-    });
-  }
-
   async function fetchMaterials() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/raw-materials`);
@@ -75,11 +60,7 @@ export default function StockOpnamePage() {
       else if (Array.isArray(data.data)) setMaterials(data.data);
       else setMaterials([]);
     } catch {
-      await showSwal(
-        'error',
-        'Gagal memuat bahan baku',
-        'Pastikan backend menyala.',
-      );
+      showToast('error', 'Gagal memuat bahan baku', 'Pastikan backend menyala.');
     }
   }
 
@@ -92,50 +73,19 @@ export default function StockOpnamePage() {
       else if (Array.isArray(data.data)) setOpnames(data.data);
       else setOpnames([]);
     } catch {
-      await showSwal(
-        'error',
-        'Gagal memuat riwayat opname',
-        'Pastikan backend menyala.',
-      );
+      showToast('error', 'Gagal memuat riwayat opname', 'Pastikan backend menyala.');
     }
   }
 
   async function saveOpname() {
     if (!rawMaterialId || realStock === '') {
-      await showSwal(
+      showToast(
         'warning',
         'Data belum lengkap',
         'Pilih bahan baku dan isi stok real.',
       );
       return;
     }
-
-    if (Number(realStock) < 0) {
-      await showSwal(
-        'warning',
-        'Stok tidak valid',
-        'Stok real tidak boleh minus.',
-      );
-      return;
-    }
-
-    const selectedName = selectedMaterial?.name || 'bahan baku ini';
-
-    const result = await Swal.fire({
-      icon: 'question',
-      title: 'Simpan stock opname?',
-      text: `Stok ${selectedName} akan disesuaikan dari ${systemStock} menjadi ${Number(
-        realStock,
-      )}.`,
-      showCancelButton: true,
-      confirmButtonText: 'Ya, simpan',
-      cancelButtonText: 'Batal',
-      confirmButtonColor: '#2f4f32',
-      cancelButtonColor: '#6b7280',
-      reverseButtons: true,
-    });
-
-    if (!result.isConfirmed) return;
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stock-opname`, {
@@ -169,7 +119,7 @@ export default function StockOpnamePage() {
       fetchMaterials();
       fetchOpnames();
     } catch (err: any) {
-      await showSwal(
+      showToast(
         'error',
         'Gagal opname',
         err.message || 'Stok opname gagal disimpan.',
@@ -178,7 +128,7 @@ export default function StockOpnamePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7ef] flex">
+    <main className="min-h-screen bg-[#f4f7ef] flex overflow-x-hidden">
       <Toast
         show={toast.show}
         type={toast.type}
@@ -189,17 +139,19 @@ export default function StockOpnamePage() {
 
       <Sidebar />
 
-      <section className="flex-1 p-8 max-md:p-4 max-md:pt-20">
+      <section className="flex-1 min-w-0 p-8 max-md:w-full max-md:p-4 max-md:pt-20 max-md:overflow-x-hidden">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
             Stock Opname
           </h1>
-          <p className="mt-1 text-[#6f7b62]">
+
+          <p className="mt-1 text-[#6f7b62] max-md:text-sm">
             Sesuaikan stok bahan baku berdasarkan stok fisik di outlet.
           </p>
         </div>
 
         <div className="mb-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* FORM OPNAME */}
           <div className="xl:col-span-1 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
             <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
               Form Opname
@@ -218,10 +170,11 @@ export default function StockOpnamePage() {
                 >
                   {selectedMaterial ? (
                     <div className="flex items-center justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-bold text-[#2f3a25]">
                           {selectedMaterial.name}
                         </p>
+
                         <p className="mt-1 text-xs text-[#6f7b62]">
                           Stok sistem:{' '}
                           {Number(selectedMaterial.stock).toLocaleString(
@@ -231,7 +184,7 @@ export default function StockOpnamePage() {
                         </p>
                       </div>
 
-                      <span className="rounded-full bg-[#eef5e8] px-3 py-1 text-xs font-bold text-[#5f7f4f]">
+                      <span className="shrink-0 rounded-full bg-[#eef5e8] px-3 py-1 text-xs font-bold text-[#5f7f4f]">
                         Dipilih
                       </span>
                     </div>
@@ -246,7 +199,7 @@ export default function StockOpnamePage() {
                 </button>
 
                 {materialDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-[92px] z-50 rounded-2xl border border-[#dfe8d2] bg-white p-3 shadow-2xl max-md:fixed max-md:left-4 max-md:right-4 max-md:top-24">
+                  <div className="absolute left-0 right-0 top-[92px] z-50 rounded-2xl border border-[#dfe8d2] bg-white p-3 shadow-2xl">
                     <input
                       value={materialSearch}
                       onChange={(e) => setMaterialSearch(e.target.value)}
@@ -282,10 +235,11 @@ export default function StockOpnamePage() {
                             }`}
                           >
                             <div className="flex items-center justify-between gap-3">
-                              <div>
+                              <div className="min-w-0">
                                 <p className="font-bold text-[#2f3a25]">
                                   {material.name}
                                 </p>
+
                                 <p className="mt-1 text-xs text-[#6f7b62]">
                                   Stok sistem:{' '}
                                   {Number(material.stock).toLocaleString(
@@ -296,7 +250,7 @@ export default function StockOpnamePage() {
                               </div>
 
                               <span
-                                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
                                   Number(material.stock) <= 0
                                     ? 'bg-red-100 text-red-600'
                                     : 'bg-emerald-100 text-emerald-700'
@@ -317,6 +271,7 @@ export default function StockOpnamePage() {
 
               <div className="rounded-xl bg-[#eef5e8] p-4">
                 <p className="text-sm text-[#6f7b62]">Stok Sistem</p>
+
                 <p className="mt-1 text-xl font-bold text-[#2f3a25]">
                   {systemStock.toLocaleString('id-ID')}{' '}
                   {selectedMaterial?.unit || ''}
@@ -341,6 +296,7 @@ export default function StockOpnamePage() {
                 }`}
               >
                 <p className="text-sm text-[#6f7b62]">Selisih</p>
+
                 <p
                   className={`mt-1 text-xl font-bold ${
                     difference < 0
@@ -376,12 +332,13 @@ export default function StockOpnamePage() {
             </div>
           </div>
 
+          {/* SUMMARY */}
           <div className="xl:col-span-2 rounded-3xl bg-white p-6 shadow border border-[#dfe8d2] max-md:p-5">
             <h2 className="text-xl font-bold text-[#2f3a25] mb-5">
               Ringkasan Bahan Baku
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-md:grid-cols-2">
               <SummaryCard label="Total Bahan" value={materials.length} />
               <SummaryCard
                 label="Stok Kosong"
@@ -392,6 +349,7 @@ export default function StockOpnamePage() {
 
             <div className="mt-6 rounded-2xl bg-[#eef5e8] p-5">
               <p className="font-bold text-[#2f3a25]">Catatan</p>
+
               <p className="mt-2 text-sm text-[#6f7b62]">
                 Setelah stock opname disimpan, stok bahan baku di sistem akan
                 langsung mengikuti stok real. Selisih akan tersimpan sebagai
@@ -420,71 +378,123 @@ export default function StockOpnamePage() {
           </button>
         </div>
 
-        <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left">
-              <thead className="bg-[#eef5e8] text-[#2f3a25]">
+        {/* MOBILE HISTORY CARD */}
+        <div className="hidden max-md:block space-y-4">
+          {filteredOpnames.length === 0 && (
+            <div className="rounded-3xl bg-white p-6 text-center text-[#8a947d] shadow border border-[#dfe8d2]">
+              Belum ada riwayat stock opname.
+            </div>
+          )}
+
+          {filteredOpnames.map((opname) => (
+            <div
+              key={opname.id}
+              className="rounded-3xl bg-white p-5 shadow border border-[#dfe8d2]"
+            >
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-lg font-bold text-[#2f3a25]">
+                    {opname.rawMaterial?.name || '-'}
+                  </p>
+
+                  <p className="mt-1 text-xs text-[#6f7b62]">
+                    {new Date(opname.createdAt).toLocaleString('id-ID')}
+                  </p>
+                </div>
+
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                    opname.difference < 0
+                      ? 'bg-red-100 text-red-700'
+                      : opname.difference > 0
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-[#eef5e8] text-[#5f7f4f]'
+                  }`}
+                >
+                  {opname.difference > 0 ? '+' : ''}
+                  {opname.difference}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <InfoBox label="Stok Sistem" value={String(opname.systemStock)} />
+                <InfoBox label="Stok Real" value={String(opname.realStock)} />
+                <InfoBox
+                  label="Selisih"
+                  value={`${opname.difference > 0 ? '+' : ''}${opname.difference}`}
+                  green={opname.difference > 0}
+                  danger={opname.difference < 0}
+                />
+                <InfoBox label="Catatan" value={opname.note || '-'} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP TABLE */}
+        <div className="rounded-3xl bg-white shadow border border-[#dfe8d2] overflow-hidden max-md:hidden">
+          <table className="w-full text-left">
+            <thead className="bg-[#eef5e8] text-[#2f3a25]">
+              <tr>
+                <th className="px-6 py-4">Tanggal</th>
+                <th className="px-6 py-4">Bahan Baku</th>
+                <th className="px-6 py-4">Stok Sistem</th>
+                <th className="px-6 py-4">Stok Real</th>
+                <th className="px-6 py-4">Selisih</th>
+                <th className="px-6 py-4">Catatan</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredOpnames.length === 0 && (
                 <tr>
-                  <th className="px-6 py-4">Tanggal</th>
-                  <th className="px-6 py-4">Bahan Baku</th>
-                  <th className="px-6 py-4">Stok Sistem</th>
-                  <th className="px-6 py-4">Stok Real</th>
-                  <th className="px-6 py-4">Selisih</th>
-                  <th className="px-6 py-4">Catatan</th>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-8 text-center text-[#8a947d]"
+                  >
+                    Belum ada riwayat stock opname.
+                  </td>
                 </tr>
-              </thead>
+              )}
 
-              <tbody>
-                {filteredOpnames.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-8 text-center text-[#8a947d]"
-                    >
-                      Belum ada riwayat stock opname.
-                    </td>
-                  </tr>
-                )}
+              {filteredOpnames.map((opname) => (
+                <tr key={opname.id} className="border-t border-[#eef2e8]">
+                  <td className="px-6 py-4 text-[#6f7b62]">
+                    {new Date(opname.createdAt).toLocaleString('id-ID')}
+                  </td>
 
-                {filteredOpnames.map((opname) => (
-                  <tr key={opname.id} className="border-t border-[#eef2e8]">
-                    <td className="px-6 py-4 text-[#6f7b62]">
-                      {new Date(opname.createdAt).toLocaleString('id-ID')}
-                    </td>
+                  <td className="px-6 py-4 font-semibold text-[#2f3a25]">
+                    {opname.rawMaterial?.name || '-'}
+                  </td>
 
-                    <td className="px-6 py-4 font-semibold text-[#2f3a25]">
-                      {opname.rawMaterial?.name || '-'}
-                    </td>
+                  <td className="px-6 py-4 text-[#2f3a25]">
+                    {opname.systemStock}
+                  </td>
 
-                    <td className="px-6 py-4 text-[#2f3a25]">
-                      {opname.systemStock}
-                    </td>
+                  <td className="px-6 py-4 text-[#2f3a25]">
+                    {opname.realStock}
+                  </td>
 
-                    <td className="px-6 py-4 text-[#2f3a25]">
-                      {opname.realStock}
-                    </td>
+                  <td
+                    className={`px-6 py-4 font-bold ${
+                      opname.difference < 0
+                        ? 'text-red-600'
+                        : opname.difference > 0
+                          ? 'text-emerald-600'
+                          : 'text-[#2f3a25]'
+                    }`}
+                  >
+                    {opname.difference > 0 ? '+' : ''}
+                    {opname.difference}
+                  </td>
 
-                    <td
-                      className={`px-6 py-4 font-bold ${
-                        opname.difference < 0
-                          ? 'text-red-600'
-                          : opname.difference > 0
-                            ? 'text-emerald-600'
-                            : 'text-[#2f3a25]'
-                      }`}
-                    >
-                      {opname.difference > 0 ? '+' : ''}
-                      {opname.difference}
-                    </td>
-
-                    <td className="px-6 py-4 text-[#6f7b62]">
-                      {opname.note || '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  <td className="px-6 py-4 text-[#6f7b62]">
+                    {opname.note || '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
     </main>
@@ -495,7 +505,38 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl bg-[#f4f7ef] p-5 border border-[#dfe8d2]">
       <p className="text-sm text-[#6f7b62]">{label}</p>
+
       <p className="mt-2 text-3xl font-bold text-[#2f3a25] max-md:text-2xl">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function InfoBox({
+  label,
+  value,
+  green = false,
+  danger = false,
+}: {
+  label: string;
+  value: string;
+  green?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-[#f8fff4] p-3 border border-[#eef2e8]">
+      <p className="text-xs text-[#8a947d]">{label}</p>
+
+      <p
+        className={`mt-1 break-words text-sm font-bold ${
+          danger
+            ? 'text-red-600'
+            : green
+              ? 'text-[#008f67]'
+              : 'text-[#2f3a25]'
+        }`}
+      >
         {value}
       </p>
     </div>
