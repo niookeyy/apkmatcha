@@ -26,7 +26,7 @@ import { PaymentModule } from './payment/payment.module';
     StockOpnameModule,
     CashflowModule,
     PaymentModule,
-    ReceiptSettingModule, // ← tambahkan ini
+    ReceiptSettingModule, 
   ],
   providers: [PrismaService],
 })
