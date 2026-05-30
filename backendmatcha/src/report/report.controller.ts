@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ReportService } from './report.service';
 
 @Controller('reports')
@@ -6,8 +6,8 @@ export class ReportController {
   constructor(private reportService: ReportService) {}
 
   @Get('summary')
-  summary() {
-    return this.reportService.summary();
+  summary(@Query('range') range?: string) {
+    return this.reportService.summary(range);
   }
 
   @Get('today')
@@ -16,12 +16,12 @@ export class ReportController {
   }
 
   @Get('top-products')
-  topProducts() {
-    return this.reportService.topProducts();
+  topProducts(@Query('range') range?: string) {
+    return this.reportService.topProducts(range);
   }
 
   @Get('profit-loss')
-  profitLoss() {
-    return this.reportService.profitLoss();
+  profitLoss(@Query('range') range?: string) {
+    return this.reportService.profitLoss(range);
   }
 }
