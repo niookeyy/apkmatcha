@@ -15,9 +15,7 @@ import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true, // 🔥 penting
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     ProductModule,
     TransactionModule,
     ReportModule,
@@ -28,6 +26,7 @@ import { PaymentModule } from './payment/payment.module';
     StockOpnameModule,
     CashflowModule,
     PaymentModule,
+    ReceiptSettingModule, // ← tambahkan ini
   ],
   providers: [PrismaService],
 })
