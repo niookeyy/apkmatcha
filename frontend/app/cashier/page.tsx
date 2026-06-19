@@ -73,7 +73,7 @@ async function sendViaBridge(data: Uint8Array): Promise<void> {
   const res = await fetch(`${PRINT_BRIDGE_URL}/print`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream' },
-    body: data,
+    body: data.buffer as ArrayBuffer,
   });
   if (!res.ok) throw new Error('Print Bridge gagal');
 }
