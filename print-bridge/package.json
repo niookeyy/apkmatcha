@@ -1,0 +1,13 @@
+{
+  "name": "matchaboy-print-bridge",
+  "version": "1.0.0",
+  "description": "Local print bridge service for Matchaboy POS — supports iOS, Android, Windows",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["pos", "printer", "escpos", "thermal"],
+  "engines": {
+    "node": ">=16"
+  }
+}

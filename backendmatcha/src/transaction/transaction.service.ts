@@ -17,6 +17,7 @@ export class TransactionService {
       discount = 0,
       note = '',
       queueNumber,
+      customerName,
     } = data;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -152,6 +153,7 @@ export class TransactionService {
         status,
         note,
         queueNumber: finalQueueNumber,
+        customerName: customerName || null,
         items: {
           create: products.map((p) => ({
             productId: p.product.id,
@@ -390,6 +392,7 @@ export class TransactionService {
       showPhone: setting?.showPhone ?? true,
       transactionId: transaction.id,
       queueNumber: transaction.queueNumber,
+      customerName: transaction.customerName || '',
       date: transaction.createdAt,
       paymentMethod: transaction.paymentMethod,
       paymentStatus: transaction.paymentStatus,
@@ -453,6 +456,10 @@ export class TransactionService {
       lines.push(`Kasir: ${receipt.cashierName}`);
     }
 
+    if (receipt.customerName) {
+      lines.push(`Pelanggan: ${receipt.customerName}`);
+    }
+
     lines.push('-'.repeat(lineWidth));
 
     for (const item of receipt.items) {
@@ -496,7 +503,60 @@ export class TransactionService {
     }
 
     lines.push('-'.repeat(lineWidth));
-    lines.push(center(receipt.footer));
+    const footerText = receipt.customerName
+      ? `${receipt.footer} -${receipt.customerName}`
+      : receipt.footer;
+    lines.push(center(footerText));
+
+    return lines.join('\n');
+  }
+
+  async kitchenReceiptText(id: string) {
+    const receipt = await this.receipt(id);
+    const lineWidth = Number(receipt.printerWidth || 32);
+
+    const center = (text: string) => {
+      const clean = text || '';
+      const space = Math.max(0, Math.floor((lineWidth - clean.length) / 2));
+      return ' '.repeat(space) + clean;
+    };
+
+    const lines: string[] = [];
+
+    lines.push(center('*** STRUK DAPUR ***'));
+    lines.push('-'.repeat(lineWidth));
+
+    if (receipt.queueNumber) {
+      lines.push(center(`NO ANTRIAN: ${receipt.queueNumber}`));
+    }
+
+    if (receipt.customerName) {
+      lines.push(center(`Pelanggan: ${receipt.customerName}`));
+    }
+
+    lines.push(new Date(receipt.date).toLocaleString('id-ID'));
+    lines.push('-'.repeat(lineWidth));
+
+    for (const item of receipt.items) {
+      lines.push(`${item.qty}x ${item.name}`);
+
+      if (Array.isArray(item.addOns) && item.addOns.length > 0) {
+        item.addOns.forEach((addOn: any) => {
+          lines.push(`  + ${addOn.name}`);
+        });
+      }
+
+      if (item.note) {
+        lines.push(`  Catatan: ${item.note}`);
+      }
+    }
+
+    if (receipt.note) {
+      lines.push('-'.repeat(lineWidth));
+      lines.push(`Note: ${receipt.note}`);
+    }
+
+    lines.push('-'.repeat(lineWidth));
 
     return lines.join('\n');
   }

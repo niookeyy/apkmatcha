@@ -35,6 +35,11 @@ export class TransactionController {
     return this.transactionService.receiptText(id);
   }
 
+  @Get(':id/kitchen-receipt-text')
+  kitchenReceiptText(@Param('id') id: string) {
+    return this.transactionService.kitchenReceiptText(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.transactionService.findOne(id);

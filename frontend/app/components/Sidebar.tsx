@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { getUser, clearAuth } from '../lib/auth';
 
 export default function Sidebar() {
   const router = useRouter();
@@ -11,11 +12,8 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const u = getUser(); // pakai helper — sudah ada try-catch
+    if (u) setUser(u);
   }, []);
 
   const allMenus = [
@@ -38,39 +36,27 @@ export default function Sidebar() {
   }
 
   function logout() {
-    localStorage.removeItem('user');
+    clearAuth(); // hapus cookie + localStorage
     router.push('/');
   }
 
   const SidebarContent = (
     <>
       <div className="mb-10">
-        <img
-          src="/logo.svg"
-          alt="Matchaboy"
-          className="mb-3 h-14 w-14"
-          draggable={false}
-        />
-
+        <img src="/logo.svg" alt="Matchaboy" className="mb-3 h-14 w-14" draggable={false} />
         <h1 className="text-xl font-bold">Matchaboy</h1>
-
-        <p className="text-sm text-[#c9d8bf]">
-          {user?.role || 'POS Dashboard'}
-        </p>
+        <p className="text-sm text-[#c9d8bf]">{user?.role || 'POS Dashboard'}</p>
       </div>
 
       <nav className="space-y-3">
         {menus.map((menu) => {
           const active = pathname === menu.path;
-
           return (
             <button
               key={menu.path}
               onClick={() => goToPage(menu.path)}
               className={`w-full rounded-xl px-4 py-3 text-left font-medium transition cursor-pointer ${
-                active
-                  ? 'bg-[#6f8f5f] text-white shadow'
-                  : 'text-[#dce8d2] hover:bg-[#456b49]'
+                active ? 'bg-[#6f8f5f] text-white shadow' : 'text-[#dce8d2] hover:bg-[#456b49]'
               }`}
             >
               {menu.label}
@@ -80,17 +66,9 @@ export default function Sidebar() {
       </nav>
 
       <div className="mt-10 rounded-2xl bg-[#456b49] p-4">
-        <p className="text-xs uppercase tracking-wider text-[#dce8d2]">
-          Login sebagai
-        </p>
-
-        <p className="mt-2 font-bold text-white">
-          {user?.name || 'User'}
-        </p>
-
-        <p className="text-sm text-[#dce8d2]">
-          {user?.username || '-'}
-        </p>
+        <p className="text-xs uppercase tracking-wider text-[#dce8d2]">Login sebagai</p>
+        <p className="mt-2 font-bold text-white">{user?.name || 'User'}</p>
+        <p className="text-sm text-[#dce8d2]">{user?.username || '-'}</p>
       </div>
 
       <button
@@ -104,7 +82,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* MOBILE HAMBURGER BUTTON */}
       <button
         onClick={() => setMobileOpen(true)}
         className="fixed left-4 top-4 z-50 rounded-xl bg-[#2f4f32] px-4 py-3 font-bold text-white shadow md:hidden"
@@ -112,30 +89,17 @@ export default function Sidebar() {
         ☰
       </button>
 
-      {/* DESKTOP SIDEBAR SPACE HOLDER */}
       <div className="hidden w-64 shrink-0 md:block" />
 
-      {/* DESKTOP FIXED SIDEBAR */}
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 overflow-y-auto bg-[#2f4f32] p-6 text-white md:block">
         {SidebarContent}
       </aside>
 
-      {/* MOBILE SIDEBAR DRAWER */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            onClick={() => setMobileOpen(false)}
-            className="absolute inset-0 bg-black/40"
-          />
-
+          <div onClick={() => setMobileOpen(false)} className="absolute inset-0 bg-black/40" />
           <aside className="relative h-full w-64 overflow-y-auto bg-[#2f4f32] p-6 text-white shadow-2xl">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute right-4 top-4 text-2xl text-white"
-            >
-              ×
-            </button>
-
+            <button onClick={() => setMobileOpen(false)} className="absolute right-4 top-4 text-2xl text-white">×</button>
             {SidebarContent}
           </aside>
         </div>

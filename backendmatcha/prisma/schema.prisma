@@ -52,6 +52,7 @@ model Transaction {
   change           Int
   queueNumber      Int?
   note             String?
+  customerName     String?
   status           String            @default("COMPLETED")
   cancelReason     String?
   cancelledAt      DateTime?
